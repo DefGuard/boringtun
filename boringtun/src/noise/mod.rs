@@ -8,17 +8,21 @@ pub mod rate_limiter;
 mod session;
 mod timers;
 
-use crate::noise::errors::WireGuardError;
-use crate::noise::handshake::Handshake;
-use crate::noise::rate_limiter::RateLimiter;
-use crate::noise::timers::{TimerName, Timers};
-use crate::x25519;
+use std::{
+    collections::VecDeque,
+    convert::{TryFrom, TryInto},
+    net::{IpAddr, Ipv4Addr, Ipv6Addr},
+    sync::Arc,
+    time::Duration,
+};
 
-use std::collections::VecDeque;
-use std::convert::{TryFrom, TryInto};
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
-use std::sync::Arc;
-use std::time::Duration;
+use crate::noise::{
+    errors::WireGuardError,
+    handshake::Handshake,
+    rate_limiter::RateLimiter,
+    timers::{TimerName, Timers},
+};
+use crate::x25519;
 
 /// The default value to use for rate limiting, when no other rate limiter is defined
 const PEER_HANDSHAKE_RATE_LIMIT: u64 = 10;
@@ -162,10 +166,7 @@ impl Tunn {
         })
     }
 
-    pub fn is_expired(&self) -> bool {
-        self.handshake.is_expired()
-    }
-
+    #[must_use]
     pub fn dst_address(packet: &[u8]) -> Option<IpAddr> {
         if packet.is_empty() {
             return None;
@@ -189,8 +190,15 @@ impl Tunn {
             _ => None,
         }
     }
+}
+
+impl Tunn {
+    pub fn is_expired(&self) -> bool {
+        self.handshake.is_expired()
+    }
 
     /// Create a new tunnel using own private key and the peer public key
+    #[must_use]
     pub fn new(
         static_private: x25519::StaticSecret,
         peer_static_public: x25519::PublicKey,
@@ -418,7 +426,7 @@ impl Tunn {
                 tracing::trace!(message = "No current session available", remote_idx = r_idx);
                 WireGuardError::NoCurrentSession
             })?;
-            session.receive_packet_data(packet, dst)?
+            session.receive_packet_data(&packet, dst)?
         };
 
         self.set_current_session(r_idx);
@@ -591,7 +599,7 @@ mod tests {
     use crate::noise::timers::{REKEY_AFTER_TIME, REKEY_TIMEOUT};
 
     use super::*;
-    use rand_core::{OsRng, RngCore};
+    use aead::rand_core::{OsRng, RngCore};
 
     fn create_two_tuns() -> (Tunn, Tunn) {
         let my_secret_key = x25519_dalek::StaticSecret::random_from_rng(OsRng);

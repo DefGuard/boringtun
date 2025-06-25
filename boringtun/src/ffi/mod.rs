@@ -6,25 +6,27 @@
 #![allow(clippy::missing_safety_doc)]
 
 //! C bindings for the BoringTun library
-use super::noise::{Tunn, TunnResult};
-use crate::x25519::{PublicKey, StaticSecret};
-use base64::{decode, encode};
+use std::{
+    ffi::{CStr, CString},
+    io::{Error, Write},
+    os::raw::c_char,
+    panic, ptr, slice,
+    sync::Once,
+};
+
+use aead::rand_core::OsRng;
+use base64::prelude::*;
 use hex::encode as encode_hex;
 use libc::{raise, SIGSEGV};
 use parking_lot::Mutex;
-use rand_core::OsRng;
 use tracing;
 use tracing_subscriber::fmt;
 
-use crate::serialization::KeyBytes;
-use std::ffi::{CStr, CString};
-use std::io::{Error, ErrorKind, Write};
-use std::os::raw::c_char;
-use std::panic;
-use std::ptr;
-use std::ptr::null_mut;
-use std::slice;
-use std::sync::Once;
+use super::noise::{Tunn, TunnResult};
+use crate::{
+    serialization::KeyBytes,
+    x25519::{PublicKey, StaticSecret},
+};
 
 static PANIC_HOOK: Once = Once::new();
 
@@ -64,25 +66,25 @@ pub struct stats {
 }
 
 impl<'a> From<TunnResult<'a>> for wireguard_result {
-    fn from(res: TunnResult<'a>) -> wireguard_result {
+    fn from(res: TunnResult<'a>) -> Self {
         match res {
-            TunnResult::Done => wireguard_result {
+            TunnResult::Done => Self {
                 op: result_type::WIREGUARD_DONE,
                 size: 0,
             },
-            TunnResult::Err(e) => wireguard_result {
+            TunnResult::Err(e) => Self {
                 op: result_type::WIREGUARD_ERROR,
                 size: e as _,
             },
-            TunnResult::WriteToNetwork(b) => wireguard_result {
+            TunnResult::WriteToNetwork(b) => Self {
                 op: result_type::WRITE_TO_NETWORK,
                 size: b.len(),
             },
-            TunnResult::WriteToTunnelV4(b, _) => wireguard_result {
+            TunnResult::WriteToTunnelV4(b, _) => Self {
                 op: result_type::WRITE_TO_TUNNEL_IPV4,
                 size: b.len(),
             },
-            TunnResult::WriteToTunnelV6(b, _) => wireguard_result {
+            TunnResult::WriteToTunnelV6(b, _) => Self {
                 op: result_type::WRITE_TO_TUNNEL_IPV6,
                 size: b.len(),
             },
@@ -118,7 +120,7 @@ pub extern "C" fn x25519_public_key(private_key: x25519_key) -> x25519_key {
 /// The memory has to be freed by calling `x25519_key_to_str_free`
 #[no_mangle]
 pub extern "C" fn x25519_key_to_base64(key: x25519_key) -> *const c_char {
-    let encoded_key = encode(key.key);
+    let encoded_key = BASE64_STANDARD.encode(key.key);
     CString::into_raw(CString::new(encoded_key).unwrap())
 }
 
@@ -147,17 +149,13 @@ pub unsafe extern "C" fn check_base64_encoded_x25519_key(key: *const c_char) -> 
         Ok(string) => string,
     };
 
-    if let Ok(key) = decode(utf8_key) {
+    if let Ok(key) = BASE64_STANDARD.decode(utf8_key) {
         let len = key.len();
         let mut zero = 0u8;
         for b in key {
-            zero |= b
+            zero |= b;
         }
-        if len == 32 && zero != 0 {
-            1
-        } else {
-            0
-        }
+        i32::from(len == 32 && zero != 0)
     } else {
         0
     }
@@ -176,10 +174,7 @@ impl Write for FFIFunctionPointerWriter {
             unsafe { (self.log_func)(c_string.as_ptr()) }
             Ok(buf.len())
         } else {
-            Err(Error::new(
-                ErrorKind::Other,
-                "Failed to create CString from buffer.",
-            ))
+            Err(Error::other("Failed to create CString from buffer."))
         }
     }
 
@@ -231,11 +226,7 @@ pub unsafe extern "C" fn set_logging_function(
             .try_init()
             .is_ok()
     });
-    if let Ok(value) = result {
-        value
-    } else {
-        false
-    }
+    result.unwrap_or(false)
 }
 
 /// Allocate a new tunnel, return NULL on failure.
@@ -269,10 +260,10 @@ pub unsafe extern "C" fn new_tunnel(
             if let Ok(key) = string.parse::<KeyBytes>() {
                 Some(key.0)
             } else {
-                return null_mut();
+                return ptr::null_mut();
             }
         } else {
-            return null_mut();
+            return ptr::null_mut();
         }
     };
 
@@ -387,11 +378,11 @@ pub unsafe extern "C" fn wireguard_stats(tunnel: *const Mutex<Tunn>) -> stats {
     let tunnel = tunnel.as_ref().unwrap().lock();
     let (time, tx_bytes, rx_bytes, estimated_loss, estimated_rtt) = tunnel.stats();
     stats {
-        time_since_last_handshake: time.map(|t| t.as_secs() as i64).unwrap_or(-1),
+        time_since_last_handshake: time.map_or(-1, |t| t.as_secs() as i64),
         tx_bytes,
         rx_bytes,
         estimated_loss,
-        estimated_rtt: estimated_rtt.map(|r| r as i32).unwrap_or(-1),
+        estimated_rtt: estimated_rtt.map_or(-1, |r| r as i32),
         reserved: [0u8; 56],
     }
 }

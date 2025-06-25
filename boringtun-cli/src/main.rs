@@ -10,10 +10,10 @@ use std::os::unix::net::UnixDatagram;
 use std::process::exit;
 use tracing::Level;
 
-fn check_tun_name(_v: String) -> Result<(), String> {
+fn check_tun_name(v: &str) -> Result<(), String> {
     #[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
     {
-        if boringtun::device::tun::parse_utun_name(&_v).is_ok() {
+        if boringtun::device::tun::parse_utun_name(v).is_ok() {
             Ok(())
         } else {
             Err("Tunnel name must have the format 'utun[0-9]+', use 'utun' for automatic assignment".to_owned())
@@ -33,7 +33,7 @@ fn main() {
             Arg::new("INTERFACE_NAME")
                 .required(true)
                 .takes_value(true)
-                .validator(|tunname| check_tun_name(tunname.to_string()))
+                .validator(check_tun_name)
                 .help("The name of the created interface"),
             Arg::new("foreground")
                 .long("foreground")
@@ -106,7 +106,7 @@ fn main() {
         let log = matches.value_of("log").unwrap();
 
         let log_file =
-            File::create(log).unwrap_or_else(|_| panic!("Could not create log file {}", log));
+            File::create(log).unwrap_or_else(|_| panic!("Could not create log file {log}"));
 
         let (non_blocking, guard) = tracing_appender::non_blocking(log_file);
 
@@ -120,18 +120,18 @@ fn main() {
 
         let daemonize = Daemonize::new()
             .working_directory("/tmp")
-            .exit_action(move || {
+            .privileged_action(move || {
                 let mut b = [0u8; 1];
                 if sock2.recv(&mut b).is_ok() && b[0] == 1 {
                     println!("BoringTun started successfully");
                 } else {
                     eprintln!("BoringTun failed to start");
                     exit(1);
-                };
+                }
             });
 
         match daemonize.start() {
-            Ok(_) => tracing::info!("BoringTun started successfully"),
+            Ok(()) => tracing::info!("BoringTun started successfully"),
             Err(e) => {
                 tracing::error!(error = ?e);
                 exit(1);

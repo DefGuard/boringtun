@@ -11,10 +11,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::sleepyinstant::Instant;
 
 use aead::generic_array::GenericArray;
+use aead::rand_core::{OsRng, RngCore};
 use aead::{AeadInPlace, KeyInit};
 use chacha20poly1305::{Key, XChaCha20Poly1305};
 use parking_lot::Mutex;
-use rand_core::{OsRng, RngCore};
 use ring::constant_time::verify_slices_are_equal;
 
 const COOKIE_REFRESH: u64 = 128; // Use 128 and not 120 so the compiler can optimize out the division
@@ -52,6 +52,7 @@ pub struct RateLimiter {
 }
 
 impl RateLimiter {
+    #[must_use]
     pub fn new(public_key: &crate::x25519::PublicKey, limit: u64) -> Self {
         let mut secret_key = [0u8; 16];
         OsRng.fill_bytes(&mut secret_key);

@@ -46,7 +46,11 @@ pub enum TimerName {
     Top,
 }
 
-use self::TimerName::*;
+use self::TimerName::{
+    TimeCookieReceived, TimeCurrent, TimeLastDataPacketReceived, TimeLastDataPacketSent,
+    TimeLastHandshakeStarted, TimeLastPacketReceived, TimeLastPacketSent, TimePersistentKeepalive,
+    TimeSessionEstablished,
+};
 
 #[derive(Debug)]
 pub struct Timers {

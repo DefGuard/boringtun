@@ -1,5 +1,5 @@
+use aead::rand_core::OsRng;
 use criterion::{BatchSize, Criterion};
-use rand_core::OsRng;
 
 pub fn bench_x25519_shared_key(c: &mut Criterion) {
     let mut group = c.benchmark_group("x25519_shared_key");
@@ -37,8 +37,10 @@ pub fn bench_x25519_shared_key(c: &mut Criterion) {
                     .unwrap()
             },
             |my_private_key| {
-                ring::agreement::agree_ephemeral(my_private_key, &my_public_key, |_key_material| ())
-                    .unwrap()
+                ring::agreement::agree_ephemeral(my_private_key, &my_public_key, |_key_material| {
+                    ()
+                })
+                .unwrap();
             },
             BatchSize::SmallInput,
         );

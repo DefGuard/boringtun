@@ -45,8 +45,8 @@ pub struct ifreq {
     ifr_ifru: IfrIfru,
 }
 
-const CTLIOCGINFO: u64 = 0x0000_0000_c064_4e03;
-const SIOCGIFMTU: u64 = 0x0000_0000_c020_6933;
+const CTLIOCGINFO: u64 = 0xc064_4e03;
+const SIOCGIFMTU: u64 = 0xc020_6933;
 
 #[derive(Default, Debug)]
 pub struct TunSocket {
@@ -87,10 +87,10 @@ pub fn parse_utun_name(name: &str) -> Result<u32, Error> {
 
 impl TunSocket {
     fn write(&self, src: &[u8], af: u8) -> usize {
-        let mut hdr = [0u8, 0u8, 0u8, af as u8];
+        let mut hdr = [0u8, 0u8, 0u8, af];
         let mut iov = [
             iovec {
-                iov_base: hdr.as_mut_ptr() as _,
+                iov_base: hdr.as_mut_ptr().cast(),
                 iov_len: hdr.len(),
             },
             iovec {
@@ -129,7 +129,7 @@ impl TunSocket {
         };
         info.ctl_name[..CTRL_NAME.len()].copy_from_slice(CTRL_NAME);
 
-        if unsafe { ioctl(fd, CTLIOCGINFO, &mut info as *mut ctl_info) } < 0 {
+        if unsafe { ioctl(fd, CTLIOCGINFO, &raw mut info) } < 0 {
             unsafe { close(fd) };
             return Err(Error::IOCtl(io::Error::last_os_error()));
         }
@@ -143,14 +143,7 @@ impl TunSocket {
             sc_reserved: Default::default(),
         };
 
-        if unsafe {
-            connect(
-                fd,
-                &addr as *const sockaddr_ctl as _,
-                size_of_val(&addr) as _,
-            )
-        } < 0
-        {
+        if unsafe { connect(fd, (&raw const addr).cast(), size_of_val(&addr) as _) } < 0 {
             unsafe { close(fd) };
             let mut err_string = io::Error::last_os_error().to_string();
             err_string.push_str("(did you run with sudo?)");
@@ -178,7 +171,7 @@ impl TunSocket {
                 self.fd,
                 SYSPROTO_CONTROL,
                 UTUN_OPT_IFNAME,
-                tunnel_name.as_mut_ptr() as _,
+                tunnel_name.as_mut_ptr().cast(),
                 &mut tunnel_name_len,
             )
         } < 0
@@ -215,10 +208,12 @@ impl TunSocket {
         Ok(unsafe { ifr.ifr_ifru.ifru_mtu } as _)
     }
 
+    #[must_use]
     pub fn write4(&self, src: &[u8]) -> usize {
         self.write(src, AF_INET as u8)
     }
 
+    #[must_use]
     pub fn write6(&self, src: &[u8]) -> usize {
         self.write(src, AF_INET6 as u8)
     }
@@ -228,11 +223,11 @@ impl TunSocket {
 
         let mut iov = [
             iovec {
-                iov_base: hdr.as_mut_ptr() as _,
+                iov_base: hdr.as_mut_ptr().cast(),
                 iov_len: hdr.len(),
             },
             iovec {
-                iov_base: dst.as_mut_ptr() as _,
+                iov_base: dst.as_mut_ptr().cast(),
                 iov_len: dst.len(),
             },
         ];

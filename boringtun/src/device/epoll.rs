@@ -63,7 +63,7 @@ impl<H: Sync + Send> EventPoll<H> {
         };
 
         Ok(EventPoll {
-            events: Mutex::new(vec![]),
+            events: Mutex::new(Vec::new()),
             epoll,
         })
     }

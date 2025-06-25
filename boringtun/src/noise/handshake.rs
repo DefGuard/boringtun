@@ -1,23 +1,30 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::{HandshakeInit, HandshakeResponse, PacketCookieReply};
-use crate::noise::errors::WireGuardError;
-use crate::noise::session::Session;
-#[cfg(not(feature = "mock-instant"))]
-use crate::sleepyinstant::Instant;
-use crate::x25519;
-use aead::{Aead, Payload};
-use blake2::digest::{FixedOutput, KeyInit};
-use blake2::{Blake2s256, Blake2sMac, Digest};
-use chacha20poly1305::XChaCha20Poly1305;
-use rand_core::OsRng;
-use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
-use std::convert::TryInto;
-use std::time::{Duration, SystemTime};
+use std::{
+    convert::TryInto,
+    fmt,
+    time::{Duration, SystemTime},
+};
 
+use aead::rand_core::OsRng;
+use aead::{Aead, Payload};
+use blake2::{
+    digest::{FixedOutput, KeyInit},
+    Blake2s256, Blake2sMac, Digest,
+};
+use chacha20poly1305::XChaCha20Poly1305;
 #[cfg(feature = "mock-instant")]
 use mock_instant::Instant;
+use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
+
+use super::{HandshakeInit, HandshakeResponse, PacketCookieReply};
+#[cfg(not(feature = "mock-instant"))]
+use crate::sleepyinstant::Instant;
+use crate::{
+    noise::{errors::WireGuardError, session::Session},
+    x25519,
+};
 
 pub(crate) const LABEL_MAC1: &[u8; 8] = b"mac1----";
 pub(crate) const LABEL_COOKIE: &[u8; 8] = b"cookie--";
@@ -92,7 +99,7 @@ fn aead_chacha20_seal(ciphertext: &mut [u8], key: &[u8], counter: u64, data: &[u
     let mut nonce: [u8; 12] = [0; 12];
     nonce[4..12].copy_from_slice(&counter.to_le_bytes());
 
-    aead_chacha20_seal_inner(ciphertext, key, nonce, data, aad)
+    aead_chacha20_seal_inner(ciphertext, key, nonce, data, aad);
 }
 
 #[inline]
@@ -244,8 +251,8 @@ struct NoiseParams {
     preshared_key: Option<[u8; KEY_LEN]>,
 }
 
-impl std::fmt::Debug for NoiseParams {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for NoiseParams {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NoiseParams")
             .field("static_public", &self.static_public)
             .field("static_private", &"<redacted>")
@@ -265,8 +272,8 @@ struct HandshakeInitSentState {
     time_sent: Instant,
 }
 
-impl std::fmt::Debug for HandshakeInitSentState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for HandshakeInitSentState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HandshakeInitSentState")
             .field("local_index", &self.local_index)
             .field("hash", &self.hash)
@@ -429,7 +436,7 @@ impl Handshake {
             state: HandshakeState::None,
             last_handshake_timestamp: Tai64N::zero(),
             stamper: TimeStamper::new(),
-            cookies: Default::default(),
+            cookies: Cookies::default(),
             last_rtt: None,
         }
     }
@@ -475,7 +482,7 @@ impl Handshake {
         private_key: x25519::StaticSecret,
         public_key: x25519::PublicKey,
     ) {
-        self.params.set_static_private(private_key, public_key)
+        self.params.set_static_private(private_key, public_key);
     }
 
     pub(super) fn receive_handshake_initialization<'a>(
@@ -932,7 +939,7 @@ mod tests {
 
         aead_chacha20_seal(&mut encrypted_nothing, &key, counter, &[], &aad);
 
-        eprintln!("encrypted_nothing: {:?}", encrypted_nothing);
+        eprintln!("encrypted_nothing: {encrypted_nothing:?}");
 
         aead_chacha20_open(&mut [], &key, counter, &encrypted_nothing, &aad)
             .expect("Should open what we just sealed");

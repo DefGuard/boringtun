@@ -75,9 +75,9 @@ impl<H: Send + Sync> EventPoll<H> {
         };
 
         Ok(EventPoll {
-            events: Mutex::new(vec![]),
-            custom: Mutex::new(vec![]),
-            signals: Mutex::new(vec![]),
+            events: Mutex::new(Vec::new()),
+            custom: Mutex::new(Vec::new()),
+            signals: Mutex::new(Vec::new()),
             kqueue,
         })
     }
@@ -191,7 +191,7 @@ impl<H: Send + Sync> EventPoll<H> {
             return WaitResult::Error(io::Error::last_os_error().to_string());
         }
 
-        let event_data = unsafe { (event.udata as *mut Event<H>).as_ref().unwrap() };
+        let event_data = unsafe { event.udata.cast::<Event<H>>().as_ref().unwrap() };
 
         let guard = EventGuard {
             kqueue: self.kqueue,
@@ -215,7 +215,7 @@ impl<H: Send + Sync> EventPoll<H> {
         };
 
         let (trigger, index) = match ev.kind {
-            EventKind::FD | EventKind::Signal => (ev.event.ident as RawFd, ev.event.ident as usize),
+            EventKind::FD | EventKind::Signal => (ev.event.ident as RawFd, ev.event.ident),
             EventKind::Timer | EventKind::Notifier => (-(events.len() as RawFd) - 1, events.len()), // Custom events get negative identifiers, hopefully we will never have more than 2^31 events of each type
         };
 
@@ -229,7 +229,7 @@ impl<H: Send + Sync> EventPoll<H> {
         let mut ev = Box::new(ev);
         // The inner event points back to the wrapper
         ev.event.ident = trigger as _;
-        ev.event.udata = ev.as_mut() as *mut Event<H> as _;
+        ev.event.udata = std::ptr::from_mut::<Event<H>>(ev.as_mut()).cast();
 
         let mut kev = ev.event;
         kev.flags |= EV_ADD;
@@ -261,9 +261,10 @@ impl<H: Send + Sync> EventPoll<H> {
         let event_ref = &(*events)[ev_index as usize];
         let event_data = event_ref.as_ref().expect("Expected an event");
 
-        if event_data.kind != EventKind::Notifier {
-            panic!("Can only trigger a notification event");
-        }
+        assert!(
+            !(event_data.kind != EventKind::Notifier),
+            "Can only trigger a notification event"
+        );
 
         let mut kev = event_data.event;
         kev.fflags = NOTE_TRIGGER;
@@ -278,9 +279,10 @@ impl<H: Send + Sync> EventPoll<H> {
         let event_ref = &(*events)[ev_index as usize];
         let event_data = event_ref.as_ref().expect("Expected an event");
 
-        if event_data.kind != EventKind::Notifier {
-            panic!("Can only stop a notification event");
-        }
+        assert!(
+            !(event_data.kind != EventKind::Notifier),
+            "Can only stop a notification event"
+        );
 
         let mut kev = event_data.event;
         kev.flags = EV_DISABLE;
@@ -292,7 +294,7 @@ impl<H: Send + Sync> EventPoll<H> {
 
 impl<H> EventPoll<H> {
     // This function is only safe to call when the event loop is not running
-    pub unsafe fn clear_event_by_fd(&self, index: RawFd) {
+    pub unsafe fn clear_event_by_fd(&self, index: RawFd) { unsafe {
         let (mut events, index) = if index >= 0 {
             (self.events.lock(), index as usize)
         } else {
@@ -304,17 +306,17 @@ impl<H> EventPoll<H> {
             event.event.flags = EV_DELETE;
             kevent(self.kqueue, &event.event, 1, null_mut(), 0, null());
         }
-    }
+    }}
 }
 
-impl<'a, H> Deref for EventGuard<'a, H> {
+impl<H> Deref for EventGuard<'_, H> {
     type Target = H;
     fn deref(&self) -> &H {
         &self.event.handler
     }
 }
 
-impl<'a, H> Drop for EventGuard<'a, H> {
+impl<H> Drop for EventGuard<'_, H> {
     fn drop(&mut self) {
         unsafe {
             // Re-enable the event once EventGuard goes out of scope
@@ -323,7 +325,7 @@ impl<'a, H> Drop for EventGuard<'a, H> {
     }
 }
 
-impl<'a, H> EventGuard<'a, H> {
+impl<H> EventGuard<'_, H> {
     /// Cancel and remove the event represented by this guard
     pub fn cancel(self) {
         unsafe { self.poll.clear_event_by_fd(self.event.event.ident as RawFd) };
@@ -331,6 +333,7 @@ impl<'a, H> EventGuard<'a, H> {
     }
 
     /// Stub: only used for Linux-specific features.
+    #[must_use]
     pub fn fd(&self) -> i32 {
         -1
     }
