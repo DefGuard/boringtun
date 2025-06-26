@@ -1,14 +1,18 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
+use std::{
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, SocketAddrV4, SocketAddrV6},
+    str::FromStr,
+};
+
 use parking_lot::RwLock;
 use socket2::{Domain, Protocol, Type};
 
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, Shutdown, SocketAddr, SocketAddrV4, SocketAddrV6};
-use std::str::FromStr;
-
-use crate::device::{AllowedIps, Error};
-use crate::noise::{Tunn, TunnResult};
+use crate::{
+    device::{AllowedIps, Error},
+    noise::{Tunn, TunnResult},
+};
 
 #[derive(Default, Debug)]
 pub struct Endpoint {

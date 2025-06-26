@@ -1,11 +1,16 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::PacketData;
-use crate::noise::errors::WireGuardError;
+use std::{
+    fmt,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
 use parking_lot::Mutex;
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
-use std::sync::atomic::{AtomicUsize, Ordering};
+
+use super::PacketData;
+use crate::noise::errors::WireGuardError;
 
 pub struct Session {
     pub(crate) receiving_index: u32,
@@ -16,8 +21,8 @@ pub struct Session {
     receiving_key_counter: Mutex<ReceivingKeyCounterValidator>,
 }
 
-impl std::fmt::Debug for Session {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Debug for Session {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "Session: {}<- ->{}",
@@ -36,7 +41,7 @@ const WORD_SIZE: u64 = 64;
 const N_WORDS: u64 = 16; // Suffice to reorder 64*16 = 1024 packets; can be increased at will
 const N_BITS: u64 = WORD_SIZE * N_WORDS;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 struct ReceivingKeyCounterValidator {
     /// In order to avoid replays while allowing for some reordering of the packets, we keep a
     /// bitmap of received packets, and the value of the highest counter

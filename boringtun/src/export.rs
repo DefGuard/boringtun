@@ -2,38 +2,10 @@
 
 use std::sync::{Arc, Mutex};
 
-use aead::rand_core::OsRng;
-use base64::prelude::*;
-
 use crate::{
-    // serialization::KeyBytes,
     noise::{errors::WireGuardError, Tunn, TunnResult},
-    x25519::StaticSecret,
+    serialization::KeyBytes,
 };
-
-// TODO: use serialization::KeyBytes
-#[derive(uniffi::Object)]
-pub struct KeyBytes([u8; 32]);
-
-#[uniffi::export]
-impl KeyBytes {
-    #[uniffi::constructor]
-    pub fn secret() -> Self {
-        let key = StaticSecret::random_from_rng(OsRng).to_bytes();
-        Self(key)
-    }
-
-    /// Provide internal bytes as `Vec`.
-    /// It is needed mainly to implmenet Equatable and Hashable in Swift.
-    pub fn raw_bytes(&self) -> Vec<u8> {
-        self.0.into()
-    }
-
-    /// Provide base64-encoded public key.
-    pub fn public_key(&self) -> String {
-        BASE64_STANDARD.encode(self.0)
-    }
-}
 
 #[derive(uniffi::Object)]
 pub struct Tunnel(Arc<Mutex<Tunn>>);

@@ -1,18 +1,19 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
+use std::{
+    mem,
+    ops::{Index, IndexMut},
+    time::Duration,
+};
+
 use super::errors::WireGuardError;
 use crate::noise::{Tunn, TunnResult};
-use std::mem;
-use std::ops::{Index, IndexMut};
-
-use std::time::Duration;
+#[cfg(not(feature = "mock-instant"))]
+use crate::sleepyinstant::Instant;
 
 #[cfg(feature = "mock-instant")]
 use mock_instant::Instant;
-
-#[cfg(not(feature = "mock-instant"))]
-use crate::sleepyinstant::Instant;
 
 // Some constants, represent time in seconds
 // https://www.wireguard.com/papers/wireguard.pdf#page=14

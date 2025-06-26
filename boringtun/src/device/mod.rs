@@ -25,21 +25,19 @@ pub mod tun;
 #[path = "tun_linux.rs"]
 pub mod tun;
 
-use std::collections::HashMap;
-use std::io::{self, Write as _};
-use std::mem::MaybeUninit;
-use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6};
-use std::os::unix::io::AsRawFd;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::Arc;
-use std::thread;
-use std::thread::JoinHandle;
+use std::{
+    collections::HashMap,
+    io::{self, Write as _},
+    mem::MaybeUninit,
+    net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
+    os::unix::io::AsRawFd,
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    thread::{self, JoinHandle},
+};
 
-use crate::noise::errors::WireGuardError;
-use crate::noise::handshake::parse_handshake_anon;
-use crate::noise::rate_limiter::RateLimiter;
-use crate::noise::{Packet, Tunn, TunnResult};
-use crate::x25519;
 use aead::rand_core::{OsRng, RngCore};
 use allowed_ips::AllowedIps;
 use parking_lot::Mutex;
@@ -47,6 +45,14 @@ use peer::{AllowedIP, Peer};
 use poll::{EventPoll, EventRef, WaitResult};
 use socket2::{Domain, Protocol, Type};
 use tun::TunSocket;
+
+use crate::{
+    noise::{
+        errors::WireGuardError, handshake::parse_handshake_anon, rate_limiter::RateLimiter, Packet,
+        Tunn, TunnResult,
+    },
+    x25519,
+};
 
 use dev_lock::{Lock, LockReadGuard};
 
