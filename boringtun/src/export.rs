@@ -7,6 +7,8 @@ use crate::{
     serialization::KeyBytes,
 };
 
+const MIN_BUFFER_SIZE: usize = 1532; // 148?
+
 #[derive(uniffi::Object)]
 pub struct Tunnel(Arc<Mutex<Tunn>>);
 
@@ -55,8 +57,29 @@ impl Tunnel {
         Self(tunnel)
     }
 
+    pub fn tick(&self) -> TunnelResult {
+        let mut dst = vec![0; MIN_BUFFER_SIZE];
+        if let Ok(mut tunn) = self.0.lock() {
+            tunn.update_timers(dst.as_mut_slice()).into()
+        } else {
+            // FIXME
+            TunnelResult::Done
+        }
+    }
+
+    pub fn force_handshake(&self) -> TunnelResult {
+        let mut dst = vec![0; MIN_BUFFER_SIZE];
+        if let Ok(mut tunn) = self.0.lock() {
+            tunn.format_handshake_initiation(dst.as_mut_slice(), true)
+                .into()
+        } else {
+            // FIXME
+            TunnelResult::Done
+        }
+    }
+
     pub fn read(&self, src: &[u8]) -> TunnelResult {
-        let dst_len = src.len().max(148);
+        let dst_len = src.len().max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];
         if let Ok(mut tunn) = self.0.lock() {
             tunn.decapsulate(None, src, dst.as_mut_slice()).into()
@@ -67,7 +90,7 @@ impl Tunnel {
     }
 
     pub fn write(&self, src: &[u8]) -> TunnelResult {
-        let dst_len = src.len().max(148);
+        let dst_len = src.len().max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];
         if let Ok(mut tunn) = self.0.lock() {
             tunn.encapsulate(src, dst.as_mut_slice()).into()

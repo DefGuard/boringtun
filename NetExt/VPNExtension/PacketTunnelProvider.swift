@@ -20,22 +20,37 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         self.logger.log(level: .default, "\(#function)")
         os_log("\(#function)")
 
-        // FIXME: test configuration
+        // FIXME: this is a test configuration
         // Keep 127.0.0.1 as remote address for WireGuard.
         let networkSettings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
-        let ipv4Settings = NEIPv4Settings(addresses: [ "192.168.3.4" ],
-                                          subnetMasks: [ "255.255.255.0" ])
-        ipv4Settings.includedRoutes = [ NEIPv4Route(destinationAddress: "192.168.3.0",
-                                                    subnetMask: "255.255.255.0") ]
+        let ipv4Settings = NEIPv4Settings(addresses: [ "10.6.0.10" ],
+                                          subnetMasks: [ "255.255.255.255" ])
+        ipv4Settings.includedRoutes = [
+            NEIPv4Route(destinationAddress: "10.6.0.0", subnetMask: "255.255.255.0"),
+            NEIPv4Route(destinationAddress: "10.4.0.0", subnetMask: "255.255.255.0"),
+            NEIPv4Route(destinationAddress: "10.7.0.0", subnetMask: "255.255.0.0")
+        ]
         networkSettings.ipv4Settings = ipv4Settings
+        let dnsSettings = NEDNSSettings(servers: ["10.6.0.1"])
+        networkSettings.dnsSettings = dnsSettings
         self.setTunnelNetworkSettings(networkSettings) { error in
             self.logger.log(level: .default, "Set tunnel network settings returned \(error)")
             os_log("Set tunnel network settings returned \(error)")
             completionHandler(error)
         }
 
-        let interfaceConfiguration = InterfaceConfiguration(privateKey: KeyBytes.secret())
-        let peer = PeerConfiguration(publicKey: KeyBytes.secret())
+        // This end's key
+        guard let privateKey = try? KeyBytes.fromString(s: "==PRIVATE KEY==") else {
+            os_log("Private key constructor failed")
+            return
+        }
+        // The other end's key
+        guard let publicKey = try? KeyBytes.fromString(s: "==PUBLIC KEY==") else {
+            os_log("Public key constructor failed")
+            return
+        }
+        let interfaceConfiguration = InterfaceConfiguration(privateKey: privateKey)
+        let peer = PeerConfiguration(publicKey: publicKey)
         let tunnelConfiguration = TunnelConfiguration(name: "Adam was here", interface: interfaceConfiguration, peers: [peer])
         self.adapter.start(tunnelConfiguration: tunnelConfiguration)
 
