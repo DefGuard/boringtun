@@ -89,9 +89,10 @@
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Adapter.swift,
+				Endpoint.swift,
 				InterfaceConfiguration.swift,
-				PeerConfiguration.swift,
-				PrivateKey.swift,
+				IpAddrMask.swift,
+				Peer.swift,
 				TunnelConfiguration.swift,
 			);
 			target = 666FD56B2DFAEF8400470E81 /* VPNExtension */;

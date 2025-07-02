@@ -201,7 +201,9 @@ impl Session {
     pub(super) fn format_packet_data<'a>(&self, src: &[u8], dst: &'a mut [u8]) -> &'a mut [u8] {
         assert!(
             (dst.len() >= src.len() + super::DATA_OVERHEAD_SZ),
-            "The destination buffer is too small"
+            "The destination buffer is too small: {} >= {}",
+            dst.len(),
+            src.len() + super::DATA_OVERHEAD_SZ
         );
 
         let sending_key_counter = self.sending_key_counter.fetch_add(1, Ordering::Relaxed) as u64;

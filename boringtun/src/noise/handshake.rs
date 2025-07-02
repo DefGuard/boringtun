@@ -487,7 +487,7 @@ impl Handshake {
 
     pub(super) fn receive_handshake_initialization<'a>(
         &mut self,
-        packet: HandshakeInit,
+        packet: &HandshakeInit,
         dst: &'a mut [u8],
     ) -> Result<(&'a mut [u8], Session), WireGuardError> {
         // initiator.chaining_key = HASH(CONSTRUCTION)
@@ -571,7 +571,7 @@ impl Handshake {
 
     pub(super) fn receive_handshake_response(
         &mut self,
-        packet: HandshakeResponse,
+        packet: &HandshakeResponse,
     ) -> Result<Session, WireGuardError> {
         // Check if there is a handshake awaiting a response and return the correct one
         let (state, is_previous) = match (&self.state, &self.previous) {
@@ -653,13 +653,10 @@ impl Handshake {
 
     pub(super) fn receive_cookie_reply(
         &mut self,
-        packet: PacketCookieReply,
+        packet: &PacketCookieReply,
     ) -> Result<(), WireGuardError> {
-        let mac1 = match self.cookies.last_mac1 {
-            Some(mac) => mac,
-            None => {
-                return Err(WireGuardError::UnexpectedPacket);
-            }
+        let Some(mac1) = self.cookies.last_mac1 else {
+            return Err(WireGuardError::UnexpectedPacket);
         };
 
         let local_index = self.cookies.index;
@@ -686,11 +683,7 @@ impl Handshake {
     }
 
     // Compute and append mac1 and mac2 to a handshake message
-    fn append_mac1_and_mac2<'a>(
-        &mut self,
-        local_index: u32,
-        dst: &'a mut [u8],
-    ) -> Result<&'a mut [u8], WireGuardError> {
+    fn append_mac1_and_mac2<'a>(&mut self, local_index: u32, dst: &'a mut [u8]) -> &'a mut [u8] {
         let mac1_off = dst.len() - 32;
         let mac2_off = dst.len() - 16;
 
@@ -710,7 +703,7 @@ impl Handshake {
 
         self.cookies.index = local_index;
         self.cookies.last_mac1 = Some(msg_mac1);
-        Ok(dst)
+        dst
     }
 
     pub(super) fn format_handshake_initiation<'a>(
@@ -790,7 +783,7 @@ impl Handshake {
             }),
         );
 
-        self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_INIT_SZ])
+        Ok(self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_INIT_SZ]))
     }
 
     fn format_handshake_response<'a>(
@@ -802,16 +795,14 @@ impl Handshake {
         }
 
         let state = std::mem::replace(&mut self.state, HandshakeState::None);
-        let (mut chaining_key, mut hash, peer_ephemeral_public, peer_index) = match state {
-            HandshakeState::InitReceived {
-                chaining_key,
-                hash,
-                peer_ephemeral_public,
-                peer_index,
-            } => (chaining_key, hash, peer_ephemeral_public, peer_index),
-            _ => {
-                panic!("Unexpected attempt to call send_handshake_response");
-            }
+        let HandshakeState::InitReceived {
+            mut chaining_key,
+            mut hash,
+            peer_ephemeral_public,
+            peer_index,
+        } = state
+        else {
+            panic!("Unexpected attempt to call send_handshake_response");
         };
 
         let (message_type, rest) = dst.split_at_mut(4);
@@ -881,7 +872,7 @@ impl Handshake {
         let temp2 = b2s_hmac(&temp1, &[0x01]);
         let temp3 = b2s_hmac2(&temp1, &temp2, &[0x02]);
 
-        let dst = self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_RESP_SZ])?;
+        let dst = self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_RESP_SZ]);
 
         Ok((dst, Session::new(local_index, peer_index, temp2, temp3)))
     }

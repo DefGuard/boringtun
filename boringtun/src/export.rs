@@ -36,6 +36,7 @@ impl<'a> From<TunnResult<'a>> for TunnelResult {
 
 #[uniffi::export]
 impl Tunnel {
+    #[must_use]
     #[uniffi::constructor]
     pub fn new(
         private_key: &KeyBytes,
@@ -57,6 +58,7 @@ impl Tunnel {
         Self(tunnel)
     }
 
+    #[must_use]
     pub fn tick(&self) -> TunnelResult {
         let mut dst = vec![0; MIN_BUFFER_SIZE];
         if let Ok(mut tunn) = self.0.lock() {
@@ -67,6 +69,7 @@ impl Tunnel {
         }
     }
 
+    #[must_use]
     pub fn force_handshake(&self) -> TunnelResult {
         let mut dst = vec![0; MIN_BUFFER_SIZE];
         if let Ok(mut tunn) = self.0.lock() {
@@ -78,6 +81,7 @@ impl Tunnel {
         }
     }
 
+    #[must_use]
     pub fn read(&self, src: &[u8]) -> TunnelResult {
         let dst_len = src.len().max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];
@@ -89,6 +93,7 @@ impl Tunnel {
         }
     }
 
+    #[must_use]
     pub fn write(&self, src: &[u8]) -> TunnelResult {
         let dst_len = src.len().max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];

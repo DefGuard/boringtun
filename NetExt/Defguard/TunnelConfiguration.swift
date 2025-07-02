@@ -1,18 +1,11 @@
-//
-//  TunnelConfiguration.swift
-//  NetExt
-//
-//  Created by Adam on 19/06/2025.
-//
-
 import Foundation
 
 public final class TunnelConfiguration {
     public var name: String?
     public var interface: InterfaceConfiguration
-    public let peers: [PeerConfiguration]
+    public let peers: [Peer]
 
-    public init(name: String?, interface: InterfaceConfiguration, peers: [PeerConfiguration]) {
+    public init(name: String?, interface: InterfaceConfiguration, peers: [Peer]) {
         self.interface = interface
         self.peers = peers
         self.name = name

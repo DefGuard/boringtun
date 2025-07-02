@@ -1,10 +1,3 @@
-//
-//  Adapter.swift
-//  VPNExtension
-//
-//  Created by Adam on 17/06/2025.
-//
-
 import Foundation
 import Network
 import NetworkExtension

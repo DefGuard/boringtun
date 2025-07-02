@@ -315,17 +315,17 @@ impl Tunn {
         dst: &'a mut [u8],
     ) -> TunnResult<'a> {
         match packet {
-            Packet::HandshakeInit(p) => self.handle_handshake_init(p, dst),
-            Packet::HandshakeResponse(p) => self.handle_handshake_response(p, dst),
-            Packet::PacketCookieReply(p) => self.handle_cookie_reply(p),
-            Packet::PacketData(p) => self.handle_data(p, dst),
+            Packet::HandshakeInit(p) => self.handle_handshake_init(&p, dst),
+            Packet::HandshakeResponse(p) => self.handle_handshake_response(&p, dst),
+            Packet::PacketCookieReply(p) => self.handle_cookie_reply(&p),
+            Packet::PacketData(p) => self.handle_data(&p, dst),
         }
         .unwrap_or_else(TunnResult::from)
     }
 
     fn handle_handshake_init<'a>(
         &mut self,
-        p: HandshakeInit,
+        p: &HandshakeInit,
         dst: &'a mut [u8],
     ) -> Result<TunnResult<'a>, WireGuardError> {
         tracing::debug!(
@@ -350,7 +350,7 @@ impl Tunn {
 
     fn handle_handshake_response<'a>(
         &mut self,
-        p: HandshakeResponse,
+        p: &HandshakeResponse,
         dst: &'a mut [u8],
     ) -> Result<TunnResult<'a>, WireGuardError> {
         tracing::debug!(
@@ -378,7 +378,7 @@ impl Tunn {
 
     fn handle_cookie_reply<'a>(
         &mut self,
-        p: PacketCookieReply,
+        p: &PacketCookieReply,
     ) -> Result<TunnResult<'a>, WireGuardError> {
         tracing::debug!(
             message = "Received cookie_reply",
@@ -413,7 +413,7 @@ impl Tunn {
     /// Decrypts a data packet, and stores the decapsulated packet in dst.
     fn handle_data<'a>(
         &mut self,
-        packet: PacketData,
+        packet: &PacketData,
         dst: &'a mut [u8],
     ) -> Result<TunnResult<'a>, WireGuardError> {
         let r_idx = packet.receiver_idx as usize;
@@ -426,7 +426,7 @@ impl Tunn {
                 tracing::trace!(message = "No current session available", remote_idx = r_idx);
                 WireGuardError::NoCurrentSession
             })?;
-            session.receive_packet_data(&packet, dst)?
+            session.receive_packet_data(packet, dst)?
         };
 
         self.set_current_session(r_idx);

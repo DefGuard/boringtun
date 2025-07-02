@@ -1,29 +1,22 @@
-//
-//  PeerConfiguration.swift
-//  NetExt
-//
-//  Created by Adam on 19/06/2025.
-//
-
 import Foundation
 
-public struct PeerConfiguration {
+public struct Peer {
     public var publicKey: KeyBytes
     public var preSharedKey: KeyBytes?
-//    public var allowedIPs = [IPAddressRange]()
-//    public var endpoint: Endpoint?
-    public var persistentKeepAlive: UInt16?
-    public var rxBytes: UInt64?
+    public var endpoint: Endpoint?
+    public var lastHandshake: Date?
     public var txBytes: UInt64?
-    public var lastHandshakeTime: Date?
+    public var rxBytes: UInt64?
+    public var persistentKeepAlive: UInt16?
+    public var allowedIPs = [IpAddrMask]()
 
     public init(publicKey: KeyBytes) {
         self.publicKey = publicKey
     }
 }
 
-//extension PeerConfiguration: Equatable {
-//    public static func == (lhs: PeerConfiguration, rhs: PeerConfiguration) -> Bool {
+//extension Peer: Equatable {
+//    public static func == (lhs: Peer, rhs: Peer) -> Bool {
 //        return lhs.publicKey == rhs.publicKey &&
 //            lhs.preSharedKey == rhs.preSharedKey &&
 //            Set(lhs.allowedIPs) == Set(rhs.allowedIPs) &&
@@ -31,8 +24,8 @@ public struct PeerConfiguration {
 //            lhs.persistentKeepAlive == rhs.persistentKeepAlive
 //    }
 //}
-//
-//extension PeerConfiguration: Hashable {
+
+//extension Peer: Hashable {
 //    public func hash(into hasher: inout Hasher) {
 //        hasher.combine(publicKey)
 //        hasher.combine(preSharedKey)
