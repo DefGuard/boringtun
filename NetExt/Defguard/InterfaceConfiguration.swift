@@ -1,21 +1,13 @@
-//
-//  InterfaceConfiguration.swift
-//  NetExt
-//
-//  Created by Adam on 19/06/2025.
-//
-
 import Foundation
 import Network
-//import KeyBytes
 
 public struct InterfaceConfiguration {
     public var privateKey: KeyBytes
-//    public var addresses = [IPAddressRange]()
+    public var addresses = [IpAddrMask]()
     public var listenPort: UInt16?
     public var mtu: UInt16?
-//    public var dns = [DNSServer]()
-//    public var dnsSearch = [String]()
+    public var dns = [IPAddress]()
+    public var dnsSearch = [String]()
 
     public init(privateKey: KeyBytes) {
         self.privateKey = privateKey

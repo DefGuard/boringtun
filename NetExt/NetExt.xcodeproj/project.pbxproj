@@ -92,6 +92,7 @@
 				Endpoint.swift,
 				InterfaceConfiguration.swift,
 				IpAddrMask.swift,
+				KeychainHelper.swift,
 				Peer.swift,
 				TunnelConfiguration.swift,
 			);
