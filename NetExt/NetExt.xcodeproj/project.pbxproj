@@ -70,18 +70,18 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		6642C1332E1D6E3700EA582E /* Exceptions for "BoringTun" folder in "VPNExtension" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				boringtun.swift,
+				boringtun.xcframework,
+			);
+			target = 666FD56B2DFAEF8400470E81 /* VPNExtension */;
+		};
 		666FD5782DFAEF8400470E81 /* Exceptions for "VPNExtension" folder in "VPNExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				Info.plist,
-			);
-			target = 666FD56B2DFAEF8400470E81 /* VPNExtension */;
-		};
-		66890A372E0825A50025F975 /* Exceptions for "BoringTun" folder in "VPNExtension" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				boringtun.swift,
-				libboringtun.dylib,
 			);
 			target = 666FD56B2DFAEF8400470E81 /* VPNExtension */;
 		};
@@ -107,29 +107,6 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		664DBC312E0AAC4C00913668 /* Exceptions for "BoringTun" folder in "Copy Files" phase from "NetExt" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			attributesByRelativePath = {
-				libboringtun.dylib = (CodeSignOnCopy, );
-			};
-			buildPhase = 664DBC2F2E0AAC3E00913668 /* CopyFiles */;
-			membershipExceptions = (
-				libboringtun.dylib,
-			);
-		};
-		664DBC342E0AADF500913668 /* Exceptions for "BoringTun" folder in "Copy Files" phase from "VPNExtension" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			attributesByRelativePath = {
-				libboringtun.dylib = (CodeSignOnCopy, );
-			};
-			buildPhase = 664DBC322E0AADEE00913668 /* CopyFiles */;
-			membershipExceptions = (
-				libboringtun.dylib,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		666FD5442DFAE6ED00470E81 /* NetExt */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -147,9 +124,7 @@
 		66890A2F2E08115D0025F975 /* BoringTun */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				664DBC312E0AAC4C00913668 /* Exceptions for "BoringTun" folder in "Copy Files" phase from "NetExt" target */,
-				66890A372E0825A50025F975 /* Exceptions for "BoringTun" folder in "VPNExtension" target */,
-				664DBC342E0AADF500913668 /* Exceptions for "BoringTun" folder in "Copy Files" phase from "VPNExtension" target */,
+				6642C1332E1D6E3700EA582E /* Exceptions for "BoringTun" folder in "VPNExtension" target */,
 			);
 			path = BoringTun;
 			sourceTree = "<group>";
@@ -355,7 +330,6 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -387,7 +361,7 @@
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				EXCLUDED_ARCHS = "";
 				GCC_DYNAMIC_NO_PIC = NO;
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_OPTIMIZATION_LEVEL = 0;
@@ -410,6 +384,7 @@
 				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/BoringTun/boringtunFFI.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Debug;
 		};
@@ -420,7 +395,6 @@
 				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
 				CLANG_ANALYZER_NONNULL = YES;
 				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
 				CLANG_ENABLE_MODULES = YES;
 				CLANG_ENABLE_OBJC_ARC = YES;
 				CLANG_ENABLE_OBJC_WEAK = YES;
@@ -452,7 +426,7 @@
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_USER_SCRIPT_SANDBOXING = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu17;
+				EXCLUDED_ARCHS = "";
 				GCC_NO_COMMON_BLOCKS = YES;
 				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
 				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
@@ -467,6 +441,7 @@
 				MTL_FAST_MATH = YES;
 				SWIFT_COMPILATION_MODE = wholemodule;
 				SWIFT_OBJC_BRIDGING_HEADER = "$(PROJECT_DIR)/BoringTun/boringtunFFI.h";
+				SWIFT_VERSION = 6.0;
 			};
 			name = Release;
 		};
@@ -507,7 +482,6 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
@@ -551,7 +525,6 @@
 				SUPPORTED_PLATFORMS = "iphoneos iphonesimulator macosx";
 				SUPPORTS_MACCATALYST = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				XROS_DEPLOYMENT_TARGET = 2.5;
 			};
@@ -591,7 +564,6 @@
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
 			name = Debug;
@@ -630,7 +602,6 @@
 				SUPPORTS_MAC_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SUPPORTS_XR_DESIGNED_FOR_IPHONE_IPAD = NO;
 				SWIFT_EMIT_LOC_STRINGS = YES;
-				SWIFT_VERSION = 5.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
 				VALIDATE_PRODUCT = YES;
 			};
