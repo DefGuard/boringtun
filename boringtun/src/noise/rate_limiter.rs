@@ -1,21 +1,27 @@
-use super::handshake::{b2s_hash, b2s_keyed_mac_16, b2s_keyed_mac_16_2, b2s_mac_24};
-use crate::noise::handshake::{LABEL_COOKIE, LABEL_MAC1};
-use crate::noise::{HandshakeInit, HandshakeResponse, Packet, Tunn, TunnResult, WireGuardError};
+use std::{
+    net::IpAddr,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
-#[cfg(feature = "mock-instant")]
-use mock_instant::Instant;
-use std::net::IpAddr;
-use std::sync::atomic::{AtomicU64, Ordering};
-
-#[cfg(not(feature = "mock-instant"))]
-use crate::sleepyinstant::Instant;
-
-use aead::generic_array::GenericArray;
-use aead::rand_core::{OsRng, RngCore};
-use aead::{AeadInPlace, KeyInit};
+use aead::{
+    generic_array::GenericArray,
+    rand_core::{OsRng, RngCore},
+    AeadInPlace, KeyInit,
+};
 use chacha20poly1305::{Key, XChaCha20Poly1305};
+#[cfg(feature = "mock-instant")]
+use mock_instant::global::Instant;
 use parking_lot::Mutex;
 use ring::constant_time::verify_slices_are_equal;
+
+use super::{
+    handshake::{
+        b2s_hash, b2s_keyed_mac_16, b2s_keyed_mac_16_2, b2s_mac_24, LABEL_COOKIE, LABEL_MAC1,
+    },
+    HandshakeInit, HandshakeResponse, Packet, Tunn, TunnResult, WireGuardError,
+};
+#[cfg(not(feature = "mock-instant"))]
+use crate::sleepyinstant::Instant;
 
 const COOKIE_REFRESH: u64 = 128; // Use 128 and not 120 so the compiler can optimize out the division
 const COOKIE_SIZE: usize = 16;

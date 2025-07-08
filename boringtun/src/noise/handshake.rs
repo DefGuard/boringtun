@@ -7,24 +7,22 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use aead::rand_core::OsRng;
-use aead::{Aead, Payload};
+use aead::{rand_core::OsRng, Aead, Payload};
 use blake2::{
     digest::{FixedOutput, KeyInit},
     Blake2s256, Blake2sMac, Digest,
 };
 use chacha20poly1305::XChaCha20Poly1305;
 #[cfg(feature = "mock-instant")]
-use mock_instant::Instant;
+use mock_instant::global::Instant;
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
 
-use super::{HandshakeInit, HandshakeResponse, PacketCookieReply};
+use super::{
+    errors::WireGuardError, session::Session, HandshakeInit, HandshakeResponse, PacketCookieReply,
+};
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;
-use crate::{
-    noise::{errors::WireGuardError, session::Session},
-    x25519,
-};
+use crate::x25519;
 
 pub(crate) const LABEL_MAC1: &[u8; 8] = b"mac1----";
 pub(crate) const LABEL_COOKIE: &[u8; 8] = b"cookie--";

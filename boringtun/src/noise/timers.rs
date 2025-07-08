@@ -7,13 +7,12 @@ use std::{
     time::Duration,
 };
 
-use super::errors::WireGuardError;
-use crate::noise::{Tunn, TunnResult};
+use super::{errors::WireGuardError, Tunn, TunnResult};
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;
 
 #[cfg(feature = "mock-instant")]
-use mock_instant::Instant;
+use mock_instant::global::Instant;
 
 // Some constants, represent time in seconds
 // https://www.wireguard.com/papers/wireguard.pdf#page=14

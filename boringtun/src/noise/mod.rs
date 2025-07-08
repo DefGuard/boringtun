@@ -16,7 +16,7 @@ use std::{
     time::Duration,
 };
 
-use crate::noise::{
+use self::{
     errors::WireGuardError,
     handshake::Handshake,
     rate_limiter::RateLimiter,

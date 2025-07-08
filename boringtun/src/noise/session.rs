@@ -9,8 +9,7 @@ use std::{
 use parking_lot::Mutex;
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
 
-use super::PacketData;
-use crate::noise::errors::WireGuardError;
+use super::{errors::WireGuardError, PacketData};
 
 pub struct Session {
     pub(crate) receiving_index: u32,
