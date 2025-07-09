@@ -5,10 +5,23 @@ final class Peer {
     var preSharedKey: KeyBytes?
     var endpoint: Endpoint?
     var lastHandshake: Date?
-    var txBytes: UInt64?
-    var rxBytes: UInt64?
+    var txBytes: UInt64 = 0
+    var rxBytes: UInt64 = 0
     var persistentKeepAlive: UInt16?
     var allowedIPs = [IpAddrMask]()
+
+    init(publicKey: KeyBytes, preSharedKey: KeyBytes? = nil, endpoint: Endpoint? = nil,
+         lastHandshake: Date? = nil, txBytes: UInt64 = 0, rxBytes: UInt64 = 0,
+         persistentKeepAlive: UInt16? = nil, allowedIPs: [IpAddrMask] = [IpAddrMask]()) {
+        self.publicKey = publicKey
+        self.preSharedKey = preSharedKey
+        self.endpoint = endpoint
+        self.lastHandshake = lastHandshake
+        self.txBytes = txBytes
+        self.rxBytes = rxBytes
+        self.persistentKeepAlive = persistentKeepAlive
+        self.allowedIPs = allowedIPs
+    }
 
     convenience init?(data: Data) {
         do {
@@ -25,22 +38,46 @@ final class Peer {
 
     enum CodingKeys: String, CodingKey {
         case publicKey
+        case preSharedKey
+        case endpoint
+        case lastHandshake
+        case txBytes
+        case rxBytes
+        case persistentKeepAlive
+        case allowedIPs
     }
 }
 
 extension Peer: Decodable {
     convenience init(from decoder: Decoder) throws {
         let values = try decoder.container(keyedBy: CodingKeys.self)
-        let data = try values.decode(Data.self, forKey: .publicKey)
-        let publicKey = try KeyBytes.fromBytes(bytes: data)
-        self.init(publicKey: publicKey)
+
+        let publicKeyData = try values.decode(Data.self, forKey: .publicKey)
+        let publicKey = try KeyBytes.fromBytes(bytes: publicKeyData)
+
+        let preSharedKeyData = try values.decode(Data.self, forKey: .preSharedKey)
+        let preSharedKey = try KeyBytes.fromBytes(bytes: preSharedKeyData)
+
+//        let endpoint = try values.decode(Endpoint.self, forKey: .endpoint)
+
+        let lastHandshake = try values.decode(Date.self, forKey: .lastHandshake)
+        let txBytes = try values.decode(UInt64.self, forKey: .txBytes)
+        let rxBytes = try values.decode(UInt64.self, forKey: .rxBytes)
+        let persistentKeepAlive = try values.decode(UInt16.self, forKey: .persistentKeepAlive)
+        //        let allowedIPs = try values.decode(IpAddrMask.self, forKey: .allowedIPs)
+
+        self.init(
+            publicKey: publicKey, preSharedKey: preSharedKey,
+            lastHandshake: lastHandshake,
+            txBytes: txBytes, rxBytes: rxBytes, persistentKeepAlive: persistentKeepAlive
+        )
     }
 }
 
 extension Peer: Encodable {
     func encode(to encoder: Encoder) throws {
-        var peer = encoder.container(keyedBy: CodingKeys.self)
-        try peer.encode(publicKey.rawBytes(), forKey: .publicKey)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(publicKey.rawBytes(), forKey: .publicKey)
     }
 }
 

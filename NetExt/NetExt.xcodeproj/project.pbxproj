@@ -70,7 +70,7 @@
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		6642C1332E1D6E3700EA582E /* Exceptions for "BoringTun" folder in "VPNExtension" target */ = {
+		6638ED842E1E9939004F2531 /* Exceptions for "BoringTun" folder in "VPNExtension" target */ = {
 			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
 			membershipExceptions = (
 				boringtun.swift,
@@ -108,29 +108,6 @@
 		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
-/* Begin PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-		66C2AD962E1E62AC00C6E80A /* Exceptions for "BoringTun" folder in "Copy Files" phase from "NetExt" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			attributesByRelativePath = {
-				boringtun.xcframework = (CodeSignOnCopy, RemoveHeadersOnCopy, );
-			};
-			buildPhase = 664DBC2F2E0AAC3E00913668 /* CopyFiles */;
-			membershipExceptions = (
-				boringtun.xcframework,
-			);
-		};
-		66C2AD992E1E62B100C6E80A /* Exceptions for "BoringTun" folder in "Embed Libraries" phase from "VPNExtension" target */ = {
-			isa = PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet;
-			attributesByRelativePath = {
-				boringtun.xcframework = (CodeSignOnCopy, RemoveHeadersOnCopy, );
-			};
-			buildPhase = 66CFD4A22E016D25002C5A5A /* Embed Libraries */;
-			membershipExceptions = (
-				boringtun.xcframework,
-			);
-		};
-/* End PBXFileSystemSynchronizedGroupBuildPhaseMembershipExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		666FD5442DFAE6ED00470E81 /* NetExt */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
@@ -148,9 +125,7 @@
 		66890A2F2E08115D0025F975 /* BoringTun */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			exceptions = (
-				66C2AD962E1E62AC00C6E80A /* Exceptions for "BoringTun" folder in "Copy Files" phase from "NetExt" target */,
-				6642C1332E1D6E3700EA582E /* Exceptions for "BoringTun" folder in "VPNExtension" target */,
-				66C2AD992E1E62B100C6E80A /* Exceptions for "BoringTun" folder in "Embed Libraries" phase from "VPNExtension" target */,
+				6638ED842E1E9939004F2531 /* Exceptions for "BoringTun" folder in "VPNExtension" target */,
 			);
 			path = BoringTun;
 			sourceTree = "<group>";

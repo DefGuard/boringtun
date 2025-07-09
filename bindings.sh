@@ -9,20 +9,34 @@ do
     ${CARGO} build --lib --release --target ${TARGET}
 done
 
+# ${CARGO} build --lib --release
 # ${CARGO} run --release --bin uniffi-bindgen -- generate \
 #     --crate boringtun \
 #     --library target/release/libboringtun.dylib \
 #     --language swift \
 #     --out-dir target/uniffi
+
 rm -f -r target/uniffi
 ${CARGO} run --release --bin uniffi-bindgen -- \
     --xcframework --headers --modulemap --swift-sources \
-    target/release/libboringtun.dylib target/uniffi
+    target/aarch64-apple-darwin/release/libboringtun.a target/uniffi
+
+# swiftc \
+#     -module-name boringtun \
+#     -emit-library -o libboringtun.dylib \
+#     -emit-module -emit-module-path ${PWD}/NetExt/BoringTun/ \
+#     -parse-as-library \
+#     -I target/uniffi/ \
+#     -L target/release/ \
+#     -lboringtun \
+#     -Xcc -fmodule-map-file=target/uniffi/boringtunFFI.modulemap \
+#     target/uniffi/boringtun.swift
+
 mv target/uniffi/boringtun.swift ${PWD}/NetExt/BoringTun/
 rm -f -r ${PWD}/NetExt/BoringTun/boringtun.xcframework
 xcrun xcodebuild -create-xcframework \
-    -library target/aarch64-apple-darwin/release/libboringtun.dylib -headers target/uniffi \
-    -library target/aarch64-apple-ios/release/libboringtun.dylib -headers target/uniffi \
-    -library target/aarch64-apple-ios-sim/release/libboringtun.dylib -headers target/uniffi \
+    -library target/aarch64-apple-darwin/release/libboringtun.a -headers target/uniffi \
+    -library target/aarch64-apple-ios/release/libboringtun.a -headers target/uniffi \
+    -library target/aarch64-apple-ios-sim/release/libboringtun.a -headers target/uniffi \
     -output ${PWD}/NetExt/BoringTun/boringtun.xcframework
 mv target/uniffi/boringtunFFI.h ${PWD}/NetExt/BoringTun/
