@@ -1,11 +1,12 @@
 import Foundation
+import NetworkExtension
 
-public final class TunnelConfiguration {
-    public var name: String?
-    public var interface: InterfaceConfiguration
-    public let peers: [Peer]
+final class TunnelConfiguration: Codable {
+    var name: String
+    var interface: InterfaceConfiguration
+    var peers: [Peer]
 
-    public init(name: String?, interface: InterfaceConfiguration, peers: [Peer]) {
+    init(name: String, interface: InterfaceConfiguration, peers: [Peer]) {
         self.interface = interface
         self.peers = peers
         self.name = name
@@ -15,6 +16,13 @@ public final class TunnelConfiguration {
         if peerPublicKeysArray.count != peerPublicKeysSet.count {
             fatalError("Two or more peers cannot have the same public key")
         }
+    }
+
+    // Only encode these properties.
+    enum CodingKeys: String, CodingKey {
+        case name
+        case interface
+        case peers
     }
 }
 

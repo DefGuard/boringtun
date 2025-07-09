@@ -1,39 +1,57 @@
-//
-//  ContentView.swift
-//  NetExt
-//
-//  Created by Adam on 12/06/2025.
-//
-
 import SwiftUI
 import NetworkExtension
 import os
 
 struct ContentView: View {
-//    private var tunnelConfig;
-    private var configName: String?;
+    @State private var tunnelConfig: TunnelConfiguration?;
+    @State private var configName = "My Custom VPN"
 
     var body: some View {
         VStack {
             Image(systemName: "globe")
                 .imageScale(.large)
                 .foregroundStyle(.tint)
-            Text("Hello, world!")
+            Text("VPN")
             Button(action: startVPN) {
-                Text("Start VPN")
+                Text("Start")
+            }
+            Text("Config")
+            TextField("Name:", text: $configName).border(.secondary)
+            Button(action: loadConfig) {
+                Text("Load Config")
+            }
+            Button(action: saveConfig) {
+                Text("Save Config")
+            }
+            Divider()
+            Text("Config details")
+            if let config = Binding($tunnelConfig) {
+                TextField("Name", text: config.name)
+                let key = config.interface.privateKey.wrappedValue.toBase64()
+                Text("Interface key: \(key)")
+                List {
+                    ForEach(config.peers, id: \.publicKey) { peer in
+                        let key = peer.publicKey.wrappedValue.toBase64()
+                        Text("Peer key: \(key)")
+                    }
+                }
+            } else {
+                Text("No config available")
             }
         }
         .padding()
     }
 
     private func startVPN() {
-        guard let appId = Bundle.main.bundleIdentifier else { return }
+        guard let appId = Bundle.main.bundleIdentifier else {
+            os_log("Failed to get AppId")
+            return
+        }
         os_log("AppId \(appId)")
 
         NETunnelProviderManager.loadAllFromPreferences { managers, error in
             os_log("loadAllFromPreferences \(managers?.count ?? 0)")
             guard error == nil else {
-                // Handle error
                 os_log("\(error)")
                 return
             }
@@ -48,17 +66,16 @@ struct ContentView: View {
 
             let tunnelProtocol = NETunnelProviderProtocol()
             tunnelProtocol.providerBundleIdentifier = "\(appId).VPNExtension"
-            tunnelProtocol.serverAddress = "185.33.37.192:7301" // Optional, can be empty string
+            tunnelProtocol.serverAddress = "" // "185.33.37.192:7301" // Optional, can be empty string
             //tunnelProtocol.providerConfiguration = ["configKey": configData] // Pass config data if needed
 
             providerManager.protocolConfiguration = tunnelProtocol
-            providerManager.localizedDescription = "My Custom VPN"
+            providerManager.localizedDescription = configName
             providerManager.isEnabled = true
 
             if !isSaved {
                 providerManager.saveToPreferences { error in
                     if let error = error {
-                        // Handle error
                         os_log("Failed to save preferences: \(error)")
                     }
                 }
@@ -67,8 +84,92 @@ struct ContentView: View {
             do {
                 try providerManager.connection.startVPNTunnel()
             } catch {
-                // Handle error
                 os_log("Failed to start VPN: \(error)")
+            }
+        }
+    }
+
+    private func loadConfig() {
+        if configName.isEmpty {
+            os_log("Empty config name")
+            return
+        }
+        guard let appId = Bundle.main.bundleIdentifier else {
+            os_log("Failed to get AppId")
+            return
+        }
+        NETunnelProviderManager.loadAllFromPreferences {
+            managers,
+            error in
+            os_log("loadAllFromPreferences \(managers?.count ?? 0)")
+            guard error == nil else {
+                os_log("\(error)")
+                return
+            }
+            guard let managers = managers else {
+                return
+            }
+            for manager in managers {
+                if manager.localizedDescription == configName {
+                    os_log("Config found")
+                    if let protocolConfiguration = (
+                        manager as NETunnelProviderManager
+                    ).protocolConfiguration as? NETunnelProviderProtocol,
+                       let providerConfiguration = protocolConfiguration.providerConfiguration {
+                        do {
+                            tunnelConfig = try TunnelConfiguration.from(
+                                dictionary: providerConfiguration
+                            )
+                            os_log("Converted to NETunnelProviderProtocol")
+                        } catch {
+                            os_log("Failed to convert to NETunnelProviderProtocol")
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private func saveConfig() {
+        if configName.isEmpty {
+            os_log("Empty config name")
+            return
+        }
+        guard let appId = Bundle.main.bundleIdentifier else {
+            os_log("Failed to get AppId")
+            return
+        }
+
+        guard let privateKey = try? KeyBytes.fromString(s: "=PRIVATE KEY=") else {
+            os_log("Private key constructor failed")
+            return
+        }
+        guard let publicKey = try? KeyBytes.fromString(s: "=PUBLIC KEY=") else {
+            os_log("Public key constructor failed")
+            return
+        }
+        let interfaceConfiguration = InterfaceConfiguration(privateKey: privateKey)
+        let peer = Peer(publicKey: publicKey)
+        let tunnelConfiguration = TunnelConfiguration(name: "Adam was here", interface: interfaceConfiguration, peers: [peer])
+        guard let providerConfiguration = try? tunnelConfiguration.toDictionary() else {
+            return
+        }
+
+        let tunnelProtocol = NETunnelProviderProtocol()
+        tunnelProtocol.providerBundleIdentifier = "\(appId).VPNExtension"
+        tunnelProtocol.serverAddress = ""
+        tunnelProtocol.providerConfiguration = providerConfiguration
+
+        let providerManager = NETunnelProviderManager()
+        providerManager.protocolConfiguration = tunnelProtocol
+        providerManager.localizedDescription = configName
+        providerManager.isEnabled = true
+
+        providerManager.saveToPreferences { error in
+            if let error = error {
+                os_log("Failed to save preferences: \(error)")
+            } else {
+                os_log("Config '\(configName)' saved to preferences")
             }
         }
     }

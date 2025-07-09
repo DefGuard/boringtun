@@ -3,7 +3,7 @@ import Network
 import NetworkExtension
 import os
 
-public class Adapter {
+final class Adapter /*: Sendable*/ {
     /// Packet tunnel provider.
     private weak var packetTunnelProvider: NEPacketTunnelProvider?
     /// BortingTun tunnel

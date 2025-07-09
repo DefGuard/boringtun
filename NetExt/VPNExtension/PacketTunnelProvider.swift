@@ -1,10 +1,3 @@
-//
-//  PacketTunnelProvider.swift
-//  VPNExtension
-//
-//  Created by Adam on 12/06/2025.
-//
-
 import NetworkExtension
 import os
 

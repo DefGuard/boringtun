@@ -1,17 +1,46 @@
 import Foundation
 
-public struct Peer {
-    public var publicKey: KeyBytes
-    public var preSharedKey: KeyBytes?
-    public var endpoint: Endpoint?
-    public var lastHandshake: Date?
-    public var txBytes: UInt64?
-    public var rxBytes: UInt64?
-    public var persistentKeepAlive: UInt16?
-    public var allowedIPs = [IpAddrMask]()
+final class Peer {
+    var publicKey: KeyBytes
+    var preSharedKey: KeyBytes?
+    var endpoint: Endpoint?
+    var lastHandshake: Date?
+    var txBytes: UInt64?
+    var rxBytes: UInt64?
+    var persistentKeepAlive: UInt16?
+    var allowedIPs = [IpAddrMask]()
 
-    public init(publicKey: KeyBytes) {
+    convenience init?(data: Data) {
+        do {
+            let key = try KeyBytes.fromBytes(bytes: data)
+            self.init(publicKey: key)
+        } catch {
+            return nil
+        }
+    }
+
+    init(publicKey: KeyBytes) {
         self.publicKey = publicKey
+    }
+
+    enum CodingKeys: String, CodingKey {
+        case publicKey
+    }
+}
+
+extension Peer: Decodable {
+    convenience init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+        let data = try values.decode(Data.self, forKey: .publicKey)
+        let publicKey = try KeyBytes.fromBytes(bytes: data)
+        self.init(publicKey: publicKey)
+    }
+}
+
+extension Peer: Encodable {
+    func encode(to encoder: Encoder) throws {
+        var peer = encoder.container(keyedBy: CodingKeys.self)
+        try peer.encode(publicKey.rawBytes(), forKey: .publicKey)
     }
 }
 
