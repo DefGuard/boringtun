@@ -58,18 +58,19 @@ extension Peer: Decodable {
         let preSharedKeyData = try values.decode(Data.self, forKey: .preSharedKey)
         let preSharedKey = try KeyBytes.fromBytes(bytes: preSharedKeyData)
 
-//        let endpoint = try values.decode(Endpoint.self, forKey: .endpoint)
+        let endpoint = try values.decode(Endpoint.self, forKey: .endpoint)
 
         let lastHandshake = try values.decode(Date.self, forKey: .lastHandshake)
         let txBytes = try values.decode(UInt64.self, forKey: .txBytes)
         let rxBytes = try values.decode(UInt64.self, forKey: .rxBytes)
         let persistentKeepAlive = try values.decode(UInt16.self, forKey: .persistentKeepAlive)
-        //        let allowedIPs = try values.decode(IpAddrMask.self, forKey: .allowedIPs)
+        let allowedIPs = try values.decode([IpAddrMask].self, forKey: .allowedIPs)
 
         self.init(
-            publicKey: publicKey, preSharedKey: preSharedKey,
+            publicKey: publicKey, preSharedKey: preSharedKey, endpoint: endpoint,
             lastHandshake: lastHandshake,
-            txBytes: txBytes, rxBytes: rxBytes, persistentKeepAlive: persistentKeepAlive
+            txBytes: txBytes, rxBytes: rxBytes, persistentKeepAlive: persistentKeepAlive,
+            allowedIPs: allowedIPs
         )
     }
 }

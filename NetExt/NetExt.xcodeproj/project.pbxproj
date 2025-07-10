@@ -12,6 +12,13 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
+		6638ED922E1FB976004F2531 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 666FD53A2DFAE6ED00470E81 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 666FD5412DFAE6ED00470E81;
+			remoteInfo = NetExt;
+		};
 		666FD5752DFAEF8400470E81 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
 			containerPortal = 666FD53A2DFAE6ED00470E81 /* Project object */;
@@ -64,6 +71,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		6638ED8E2E1FB976004F2531 /* NetExtTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetExtTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		666FD5422DFAE6ED00470E81 /* NetExt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetExt.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		666FD56C2DFAEF8400470E81 /* VPNExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = VPNExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		666FD56E2DFAEF8400470E81 /* NetworkExtension.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = NetworkExtension.framework; path = System/Library/Frameworks/NetworkExtension.framework; sourceTree = SDKROOT; };
@@ -109,6 +117,11 @@
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
+		6638ED8F2E1FB976004F2531 /* NetExtTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = NetExtTests;
+			sourceTree = "<group>";
+		};
 		666FD5442DFAE6ED00470E81 /* NetExt */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
 			path = NetExt;
@@ -142,6 +155,13 @@
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
+		6638ED8B2E1FB976004F2531 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		666FD53F2DFAE6ED00470E81 /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
@@ -167,6 +187,7 @@
 				66CFD49A2E015B19002C5A5A /* Defguard */,
 				666FD5442DFAE6ED00470E81 /* NetExt */,
 				666FD5702DFAEF8400470E81 /* VPNExtension */,
+				6638ED8F2E1FB976004F2531 /* NetExtTests */,
 				666FD56D2DFAEF8400470E81 /* Frameworks */,
 				666FD5432DFAE6ED00470E81 /* Products */,
 			);
@@ -177,6 +198,7 @@
 			children = (
 				666FD5422DFAE6ED00470E81 /* NetExt.app */,
 				666FD56C2DFAEF8400470E81 /* VPNExtension.appex */,
+				6638ED8E2E1FB976004F2531 /* NetExtTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -192,6 +214,29 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
+		6638ED8D2E1FB976004F2531 /* NetExtTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 6638ED942E1FB976004F2531 /* Build configuration list for PBXNativeTarget "NetExtTests" */;
+			buildPhases = (
+				6638ED8A2E1FB976004F2531 /* Sources */,
+				6638ED8B2E1FB976004F2531 /* Frameworks */,
+				6638ED8C2E1FB976004F2531 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				6638ED932E1FB976004F2531 /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				6638ED8F2E1FB976004F2531 /* NetExtTests */,
+			);
+			name = NetExtTests;
+			packageProductDependencies = (
+			);
+			productName = NetExtTests;
+			productReference = 6638ED8E2E1FB976004F2531 /* NetExtTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 		666FD5412DFAE6ED00470E81 /* NetExt */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 666FD54E2DFAE6EE00470E81 /* Build configuration list for PBXNativeTarget "NetExt" */;
@@ -253,6 +298,10 @@
 				LastSwiftUpdateCheck = 1640;
 				LastUpgradeCheck = 1640;
 				TargetAttributes = {
+					6638ED8D2E1FB976004F2531 = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 666FD5412DFAE6ED00470E81;
+					};
 					666FD5412DFAE6ED00470E81 = {
 						CreatedOnToolsVersion = 16.4;
 					};
@@ -277,11 +326,19 @@
 			targets = (
 				666FD5412DFAE6ED00470E81 /* NetExt */,
 				666FD56B2DFAEF8400470E81 /* VPNExtension */,
+				6638ED8D2E1FB976004F2531 /* NetExtTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
+		6638ED8C2E1FB976004F2531 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		666FD5402DFAE6ED00470E81 /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -299,6 +356,13 @@
 /* End PBXResourcesBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
+		6638ED8A2E1FB976004F2531 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 		666FD53E2DFAE6ED00470E81 /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -316,6 +380,11 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
+		6638ED932E1FB976004F2531 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 666FD5412DFAE6ED00470E81 /* NetExt */;
+			targetProxy = 6638ED922E1FB976004F2531 /* PBXContainerItemProxy */;
+		};
 		666FD5762DFAEF8400470E81 /* PBXTargetDependency */ = {
 			isa = PBXTargetDependency;
 			target = 666FD56B2DFAEF8400470E81 /* VPNExtension */;
@@ -324,6 +393,48 @@
 /* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
+		6638ED952E1FB976004F2531 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 82GZ7KN29J;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.defguard.NetExtTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetExt.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NetExt";
+			};
+			name = Debug;
+		};
+		6638ED962E1FB976004F2531 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = 82GZ7KN29J;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 15.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = net.defguard.NetExtTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetExt.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/NetExt";
+			};
+			name = Release;
+		};
 		666FD54C2DFAE6EE00470E81 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
@@ -611,6 +722,15 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
+		6638ED942E1FB976004F2531 /* Build configuration list for PBXNativeTarget "NetExtTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6638ED952E1FB976004F2531 /* Debug */,
+				6638ED962E1FB976004F2531 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
 		666FD53D2DFAE6ED00470E81 /* Build configuration list for PBXProject "NetExt" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

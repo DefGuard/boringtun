@@ -1,6 +1,6 @@
 import Network
 
-struct Endpoint: CustomStringConvertible {
+struct Endpoint: CustomStringConvertible, Codable {
     let host: NWEndpoint.Host
     let port: NWEndpoint.Port
 
@@ -11,7 +11,7 @@ struct Endpoint: CustomStringConvertible {
 
     /// Custom initializer from String. Assume format "host:port".
     init?(from string: String) {
-        let components = string.split(separator: ",")
+        let components = string.split(separator: ":")
         guard components.count == 2,
               let port = NWEndpoint.Port(String(components[1])) else {
             return nil
@@ -25,14 +25,21 @@ struct Endpoint: CustomStringConvertible {
         "\(host):\(port)"
     }
 
-//    enum CodingKeys: String, CodingKey {
-//        case host
-//        case port
-//    }
-//
-//    func encode(to encoder: Encoder) throws {
-//        var container = encoder.container(keyedBy: CodingKeys.self)
-//        try container.encode(host, forKey: .host)
-//        try container.encode(port, forKey: .port)
-//    }
+    enum CodingKeys: String, CodingKey {
+        case host
+        case port
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode("\(host)", forKey: .host)
+        try container.encode(port.rawValue, forKey: .port)
+    }
+
+    init(from decoder: Decoder) throws {
+        let values = try decoder.container(keyedBy: CodingKeys.self)
+
+        host = try NWEndpoint.Host(values.decode(String.self, forKey: .host))
+        port = try NWEndpoint.Port(rawValue: values.decode(UInt16.self, forKey: .port)) ?? 0
+    }
 }
