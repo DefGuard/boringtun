@@ -27,11 +27,11 @@ struct ContentView: View {
             Text("Config details")
             if let config = Binding($tunnelConfig) {
                 TextField("Name", text: config.name)
-                let key = config.interface.privateKey.wrappedValue.toBase64()
+                let key = config.interface.privateKey.wrappedValue
                 Text("Interface key: \(key)")
                 List {
                     ForEach(config.peers, id: \.publicKey) { peer in
-                        let key = peer.publicKey.wrappedValue.toBase64()
+                        let key = peer.publicKey.wrappedValue
                         Text("Peer key: \(key)")
                     }
                 }
@@ -140,14 +140,8 @@ struct ContentView: View {
             return
         }
 
-        guard let privateKey = try? KeyBytes.fromString(s: "=PRIVATE KEY=") else {
-            os_log("Private key constructor failed")
-            return
-        }
-        guard let publicKey = try? KeyBytes.fromString(s: "=PUBLIC KEY=") else {
-            os_log("Public key constructor failed")
-            return
-        }
+        let privateKey = "PRIVATE KEY"
+        let publicKey =  "PUBLIC KEY"
         let interfaceConfiguration = InterfaceConfiguration(privateKey: privateKey)
         let peer = Peer(publicKey: publicKey)
         let tunnelConfiguration = TunnelConfiguration(name: "Adam was here", interface: interfaceConfiguration, peers: [peer])

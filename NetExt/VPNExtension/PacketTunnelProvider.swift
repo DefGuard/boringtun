@@ -38,21 +38,18 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
 
         // This end's key
-        guard let privateKey = try? KeyBytes.fromString(s: "==PRIVATE KEY==") else {
-            self.logger.log("Private key constructor failed")
-            completionHandler(nil)
-            return
-        }
+        let privateKey = "PRIVATE KEY"
         // The other end's key
-        guard let publicKey = try? KeyBytes.fromString(s: "==PUBLIC KEY==") else {
-            self.logger.log("Public key constructor failed")
-            completionHandler(nil)
-            return
-        }
+        let publicKey = "PUBLIC KEY"
         let interfaceConfiguration = InterfaceConfiguration(privateKey: privateKey)
         let peer = Peer(publicKey: publicKey)
         let tunnelConfiguration = TunnelConfiguration(name: "Adam was here", interface: interfaceConfiguration, peers: [peer])
-        self.adapter.start(tunnelConfiguration: tunnelConfiguration)
+        do {
+            try self.adapter.start(tunnelConfiguration: tunnelConfiguration)
+        } catch {
+            // TODO: completionHandler(error)
+            self.logger.log("Failed to start tunnel")
+        }
 
         // No error.
         completionHandler(nil)

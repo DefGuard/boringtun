@@ -24,12 +24,13 @@ final class Adapter /*: Sendable*/ {
     //        }
     //    }
 
-    public func start(tunnelConfiguration: TunnelConfiguration) {
+    public func start(tunnelConfiguration: TunnelConfiguration) throws {
         // TODO: kill exising tunnel
         os_log("Initalizing Tunnel...")
-        tunnel = Tunnel.init(
+        tunnel = try Tunnel.init(
             privateKey: tunnelConfiguration.interface.privateKey,
             serverPublicKey: tunnelConfiguration.peers[0].publicKey,
+            presharedKey: tunnelConfiguration.peers[0].preSharedKey,
             keepAlive: tunnelConfiguration.peers[0].persistentKeepAlive,
             index: 0
         )

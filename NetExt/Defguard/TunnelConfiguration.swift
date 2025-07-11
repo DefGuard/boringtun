@@ -12,7 +12,7 @@ final class TunnelConfiguration: Codable {
         self.name = name
 
         let peerPublicKeysArray = peers.map { $0.publicKey }
-        let peerPublicKeysSet = Set<KeyBytes>(peerPublicKeysArray)
+        let peerPublicKeysSet = Set<String>(peerPublicKeysArray)
         if peerPublicKeysArray.count != peerPublicKeysSet.count {
             fatalError("Two or more peers cannot have the same public key")
         }
@@ -23,18 +23,6 @@ final class TunnelConfiguration: Codable {
         case name
         case interface
         case peers
-    }
-}
-
-extension KeyBytes: Equatable, Hashable {
-    public static func == (lhs: KeyBytes, rhs: KeyBytes) -> Bool {
-        // Compare relevant properties for equality
-        return lhs.rawBytes() == rhs.rawBytes()
-    }
-
-    public func hash(into hasher: inout Hasher) {
-        // Combine relevant properties into the hasher
-        hasher.combine(rawBytes())
     }
 }
 

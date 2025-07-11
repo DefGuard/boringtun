@@ -31,16 +31,22 @@ struct EndpointTests {
 }
 
 struct IpAddrMaskTests {
+    let encoder = JSONEncoder()
+    let decoder = JSONDecoder()
+
     @Test func ipaddrmask_coding() throws {
-        let address = try #require(IPv4Address("127.0.0.1"))
-        let ipaddrmask = IpAddrMask(address: address, cidr: 8)
+        let ipv4 = try #require(IPv4Address("88.99.11.38"))
+        let ipaddrmask_ipv4 = IpAddrMask(address: ipv4, cidr: 8)
+        let json_ipv4 = try encoder.encode(ipaddrmask_ipv4)
+        let decoded_ipv4 = try decoder.decode(IpAddrMask.self, from: json_ipv4)
 
-        let encoder = JSONEncoder()
-        let json = try encoder.encode(ipaddrmask)
+        #expect(ipaddrmask_ipv4 == decoded_ipv4)
 
-        let decoder = JSONDecoder()
-        let decoded_address = try decoder.decode(IpAddrMask.self, from: json)
+        let ipv6 = try #require(IPv6Address("fc00::dead:f00d"))
+        let ipaddrmask_ipv6 = IpAddrMask(address: ipv6, cidr: 16)
+        let json_ipv6 = try encoder.encode(ipaddrmask_ipv6)
+        let decoded_ipv6 = try decoder.decode(IpAddrMask.self, from: json_ipv6)
 
-        #expect(ipaddrmask == decoded_address)
+        #expect(ipaddrmask_ipv6 == decoded_ipv6)
     }
 }

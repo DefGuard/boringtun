@@ -1,45 +1,20 @@
 import Foundation
 import Network
 
-final class InterfaceConfiguration {
-    var privateKey: KeyBytes
+final class InterfaceConfiguration: Codable {
+    var privateKey: String
     var addresses = [IpAddrMask]()
     var listenPort: UInt16?
     var mtu: UInt16?
     var dns = [IPAddress]()
     var dnsSearch = [String]()
 
-    convenience init?(data: Data) {
-        do {
-            let key = try KeyBytes.fromBytes(bytes: data)
-            self.init(privateKey: key)
-        } catch {
-            return nil
-        }
-    }
-
-    init(privateKey: KeyBytes) {
+    init(privateKey: String) {
         self.privateKey = privateKey
     }
 
     enum CodingKeys: String, CodingKey {
         case privateKey
-    }
-}
-
-extension InterfaceConfiguration: Decodable {
-    convenience init(from decoder: Decoder) throws {
-        let values = try decoder.container(keyedBy: CodingKeys.self)
-        let data = try values.decode(Data.self, forKey: .privateKey)
-        let privateKey = try KeyBytes.fromBytes(bytes: data)
-        self.init(privateKey: privateKey)
-    }
-}
-
-extension InterfaceConfiguration: Encodable {
-    func encode(to encoder: Encoder) throws {
-        var interfaceConfiguration = encoder.container(keyedBy: CodingKeys.self)
-        try interfaceConfiguration.encode(privateKey.rawBytes(), forKey: .privateKey)
     }
 }
 

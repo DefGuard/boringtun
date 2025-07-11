@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     noise::{errors::WireGuardError, Tunn, TunnResult},
-    serialization::KeyBytes,
+    serialization::{KeyBytes, KeyBytesError},
 };
 
 const MIN_BUFFER_SIZE: usize = 1532; // 148?
@@ -39,23 +39,28 @@ impl Tunnel {
     #[must_use]
     #[uniffi::constructor]
     pub fn new(
-        private_key: &KeyBytes,
-        server_public_key: &KeyBytes,
-        // preshared_key: Option<&KeyBytes>,
+        private_key: String,
+        server_public_key: String,
+        preshared_key: Option<String>,
         keep_alive: Option<u16>,
         index: u32,
-    ) -> Self {
+    ) -> Result<Self, KeyBytesError> {
+        let private_key = KeyBytes::from_string(&private_key)?;
+        let server_public_key = KeyBytes::from_string(&server_public_key)?;
+        let preshared_key = match preshared_key {
+            Some(key) => Some(KeyBytes::from_string(&key)?),
+            None => None,
+        };
         let tunnel = Arc::new(Mutex::new(Tunn::new(
             private_key.0.into(),
             server_public_key.0.into(),
-            // preshared_key.map(|key| key.0.into()),
-            None,
+            preshared_key.map(|key| key.0.into()),
             keep_alive,
             index,
             None,
         )));
 
-        Self(tunnel)
+        Ok(Self(tunnel))
     }
 
     #[must_use]

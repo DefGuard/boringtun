@@ -6,7 +6,6 @@ use x25519_dalek::StaticSecret;
 
 const KEY_SIZE: usize = 32;
 
-#[derive(uniffi::Object)]
 pub struct KeyBytes(pub(crate) [u8; KEY_SIZE]);
 
 #[derive(Debug, uniffi::Enum)]
@@ -60,9 +59,7 @@ impl FromStr for KeyBytes {
     }
 }
 
-#[uniffi::export]
 impl KeyBytes {
-    #[uniffi::constructor]
     pub fn secret() -> Self {
         let key = StaticSecret::random_from_rng(OsRng).to_bytes();
         Self(key)
@@ -74,12 +71,10 @@ impl KeyBytes {
         self.0.into()
     }
 
-    #[uniffi::constructor]
     pub fn from_string(s: &str) -> Result<Self, KeyBytesError> {
         Self::from_str(s)
     }
 
-    #[uniffi::constructor]
     pub fn from_bytes(bytes: &[u8]) -> Result<Self, KeyBytesError> {
         let internal = bytes.try_into().map_err(|_| KeyBytesError::IllegalSize)?;
         Ok(Self(internal))
