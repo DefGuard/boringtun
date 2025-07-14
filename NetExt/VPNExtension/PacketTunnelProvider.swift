@@ -27,7 +27,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
         }
 
         // Keep 127.0.0.1 as remote address for WireGuard.
-        let networkSettings = tunnelConfig.interface.asNetworkSettings()
+        let networkSettings = tunnelConfig.asNetworkSettings()
         // FIXME: get from tunnelConfig.peers.allowedIPs
         networkSettings.ipv4Settings?.includedRoutes = [
             NEIPv4Route(destinationAddress: "10.6.0.0", subnetMask: "255.255.255.0"),
