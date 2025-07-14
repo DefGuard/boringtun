@@ -22,7 +22,7 @@ struct Endpoint: CustomStringConvertible, Codable {
 
     /// A textual representation of this instance. Required for `CustomStringConvertible`.
     var description: String {
-        "\(host):\(port)"
+        "Endpoint(\(host):\(port))"
     }
 
     enum CodingKeys: String, CodingKey {
@@ -41,5 +41,9 @@ struct Endpoint: CustomStringConvertible, Codable {
 
         host = try NWEndpoint.Host(values.decode(String.self, forKey: .host))
         port = try NWEndpoint.Port(rawValue: values.decode(UInt16.self, forKey: .port)) ?? 0
+    }
+
+    func asNWEndpoint() -> NWEndpoint {
+        NWEndpoint.hostPort(host: host, port: port)
     }
 }

@@ -1,6 +1,10 @@
 import NetworkExtension
 import os
 
+enum WireGuardTunnelError: Error {
+    case invalidTunnelConfiguration
+}
+
 class PacketTunnelProvider: NEPacketTunnelProvider {
 
     private var logger = Logger(subsystem: "net.defguard.NetExt", category: "VPNExtension")
@@ -15,37 +19,34 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             self.logger.log("Options: \(options)")
         }
 
-        if let config = self.protocolConfiguration as? NETunnelProviderProtocol {
-            self.logger.log("Config: serwer \(config.serverAddress!)")
+        guard let protocolConfig = self.protocolConfiguration as? NETunnelProviderProtocol,
+        let providerConfig = protocolConfig.providerConfiguration,
+        let tunnelConfig = try? TunnelConfiguration.from(dictionary: providerConfig) else {
+            completionHandler(WireGuardTunnelError.invalidTunnelConfiguration)
+            return
         }
 
-        // FIXME: this is a test configuration
         // Keep 127.0.0.1 as remote address for WireGuard.
-        let networkSettings = NEPacketTunnelNetworkSettings(tunnelRemoteAddress: "127.0.0.1")
-        let ipv4Settings = NEIPv4Settings(addresses: ["10.6.0.10"],
-                                          subnetMasks: ["255.255.255.255"])
-        ipv4Settings.includedRoutes = [
+        let networkSettings = tunnelConfig.interface.asNetworkSettings()
+        // FIXME: get from tunnelConfig.peers.allowedIPs
+        networkSettings.ipv4Settings?.includedRoutes = [
             NEIPv4Route(destinationAddress: "10.6.0.0", subnetMask: "255.255.255.0"),
             NEIPv4Route(destinationAddress: "10.4.0.0", subnetMask: "255.255.255.0"),
             NEIPv4Route(destinationAddress: "10.7.0.0", subnetMask: "255.255.0.0")
         ]
-        networkSettings.ipv4Settings = ipv4Settings
-        let dnsSettings = NEDNSSettings(servers: ["10.6.0.1"])
+        networkSettings.mtu = tunnelConfig.interface.mtu as NSNumber?
+        let dnsServers = tunnelConfig.interface.dns.map { ip in String(describing: ip) }
+        let dnsSettings = NEDNSSettings(servers: dnsServers)
+        dnsSettings.searchDomains = tunnelConfig.interface.dnsSearch
         networkSettings.dnsSettings = dnsSettings
         self.setTunnelNetworkSettings(networkSettings) { error in
             self.logger.log("Set tunnel network settings returned \(error)")
             completionHandler(error)
+            return
         }
 
-        // This end's key
-        let privateKey = "PRIVATE KEY"
-        // The other end's key
-        let publicKey = "PUBLIC KEY"
-        let interfaceConfiguration = InterfaceConfiguration(privateKey: privateKey)
-        let peer = Peer(publicKey: publicKey)
-        let tunnelConfiguration = TunnelConfiguration(name: "Adam was here", interface: interfaceConfiguration, peers: [peer])
         do {
-            try self.adapter.start(tunnelConfiguration: tunnelConfiguration)
+            try self.adapter.start(tunnelConfiguration: tunnelConfig)
         } catch {
             // TODO: completionHandler(error)
             self.logger.log("Failed to start tunnel")

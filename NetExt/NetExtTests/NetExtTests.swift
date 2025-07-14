@@ -49,4 +49,38 @@ struct IpAddrMaskTests {
 
         #expect(ipaddrmask_ipv6 == decoded_ipv6)
     }
+
+    @Test("IPv4 mask", arguments: [
+        0: "0.0.0.0",
+        1: "128.0.0.0",
+        2: "192.0.0.0",
+        3: "224.0.0.0",
+        4: "240.0.0.0",
+        8: "255.0.0.0",
+        9: "255.128.0.0",
+        30: "255.255.255.252",
+        31: "255.255.255.254",
+        32: "255.255.255.255"
+    ]) func ipaddrmask_mask_v4(_ cidr: UInt8, _ mask: String) throws {
+        let ipv4 = try #require(IPv4Address("88.99.11.38"))
+        let ipaddrmask_ipv4 = IpAddrMask(address: ipv4, cidr: cidr)
+        let mask_ipv4 = ipaddrmask_ipv4.mask()
+        #expect("\(mask_ipv4)" == mask)
+    }
+
+    @Test("IPv6 mask", arguments: [
+        0: "::",
+        1: "8000::",
+        2: "c000::",
+        3: "e000::",
+        4: "f000::",
+        126: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffc",
+        127: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:fffe",
+        128: "ffff:ffff:ffff:ffff:ffff:ffff:ffff:ffff"
+    ]) func ipaddrmask_mask_v6(_ cidr: UInt8, _ mask: String) throws {
+        let ipv6 = try #require(IPv6Address("fc00::dead:f00d"))
+        let ipaddrmask_ipv6 = IpAddrMask(address: ipv6, cidr: cidr)
+        let mask_ipv6 = ipaddrmask_ipv6.mask()
+        #expect("\(mask_ipv6)" == mask)
+    }
 }
