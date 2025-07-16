@@ -12,10 +12,20 @@ struct EndpointTests {
     }
 
     @Test("Check Endpoint initialisation from string") func endpoint_from_string() throws {
-        let endpoint_from = try #require(Endpoint(from: "127.0.0.1:8080"))
+        let endpoint1 = try #require(Endpoint(from: "88.99.11.38:8080"))
 
-        #expect(endpoint.host == endpoint_from.host)
-        #expect(endpoint.port == endpoint_from.port)
+        #expect(endpoint1.host == "88.99.11.38")
+        #expect(endpoint1.port == 8080)
+
+        let endpoint2 = try #require(Endpoint(from: "[fc00::0001]:8080"))
+
+        #expect(endpoint2.host == "fc00::0001")
+        #expect(endpoint2.port == 8080)
+
+        let endpoint3 = try #require(Endpoint(from: "vpn.teonite.net:8080"))
+
+        #expect(endpoint3.host == "vpn.teonite.net")
+        #expect(endpoint3.port == 8080)
     }
 
     @Test("Check Endpoint encoding and decoding") func endpoint_coding() throws {

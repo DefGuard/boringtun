@@ -54,7 +54,7 @@ impl Tunnel {
         let tunnel = Arc::new(Mutex::new(Tunn::new(
             private_key.0.into(),
             server_public_key.0.into(),
-            preshared_key.map(|key| key.0.into()),
+            preshared_key.map(|key| key.0),
             keep_alive,
             index,
             None,

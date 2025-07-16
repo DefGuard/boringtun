@@ -11,13 +11,31 @@ struct Endpoint: CustomStringConvertible, Codable {
 
     /// Custom initializer from String. Assume format "host:port".
     init?(from string: String) {
-        let components = string.split(separator: ":")
-        guard components.count == 2,
-              let port = NWEndpoint.Port(String(components[1])) else {
+        let trimmedEndpoint = string.trimmingCharacters(in: .whitespaces)
+        var endpointHost = trimmedEndpoint
+
+        // Extract host, supporting IPv4, IPv6, and domains
+        if trimmedEndpoint.hasPrefix("[") { // IPv6 with port, e.g. [fd00::1]:51820
+            if let closing = trimmedEndpoint.firstIndex(of: "]") {
+                endpointHost = String(trimmedEndpoint[trimmedEndpoint.index(after: trimmedEndpoint.startIndex)..<closing])
+            }
+        } else if trimmedEndpoint.contains(":") {
+            let parts = trimmedEndpoint.split(separator: ":", omittingEmptySubsequences: false)
+            if parts.count > 1 {
+                endpointHost = parts.dropLast().joined(separator: ":")
+            }
+        }
+
+        let endpointPort: Network.NWEndpoint.Port
+        if let portPart = trimmedEndpoint.split(separator: ":").last, let port = Int(portPart),
+           let nwPort = NWEndpoint.Port(rawValue: UInt16(port)) {
+            endpointPort = nwPort
+        } else {
             return nil
         }
-        self.host = NWEndpoint.Host(String(components[0]))
-        self.port = port
+
+        self.host = NWEndpoint.Host(endpointHost)
+        self.port = endpointPort
     }
 
     /// A textual representation of this instance. Required for `CustomStringConvertible`.
