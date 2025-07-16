@@ -32,11 +32,11 @@ ${CARGO} run --release --bin uniffi-bindgen -- \
 #     -Xcc -fmodule-map-file=target/uniffi/boringtunFFI.modulemap \
 #     target/uniffi/boringtun.swift
 
-mv target/uniffi/boringtun.swift ${PWD}/NetExt/BoringTun/
-rm -f -r ${PWD}/NetExt/BoringTun/boringtun.xcframework
+mv target/uniffi/boringtun.swift ${PWD}/../VPNExtension/BoringTun/
+rm -f -r ${PWD}/../VPNExtension/BoringTun/boringtun.xcframework
 xcrun xcodebuild -create-xcframework \
     -library target/aarch64-apple-darwin/release/libboringtun.a -headers target/uniffi \
     -library target/aarch64-apple-ios/release/libboringtun.a -headers target/uniffi \
     -library target/aarch64-apple-ios-sim/release/libboringtun.a -headers target/uniffi \
-    -output ${PWD}/NetExt/BoringTun/boringtun.xcframework
-mv target/uniffi/boringtunFFI.h ${PWD}/NetExt/BoringTun/
+    -output ${PWD}/../VPNExtension/BoringTun/boringtun.xcframework
+mv target/uniffi/boringtunFFI.h ${PWD}/../VPNExtension/BoringTun/
