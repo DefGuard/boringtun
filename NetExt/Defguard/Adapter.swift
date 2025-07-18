@@ -19,12 +19,6 @@ final class Adapter /*: Sendable*/ {
         self.packetTunnelProvider = packetTunnelProvider
     }
 
-    //    deinit {
-    //        // Shut the tunnel down
-    //        if case .started(let handle, _) = self.state {
-    //        }
-    //    }
-
     public func start(tunnelConfiguration: TunnelConfiguration) throws {
         if let _ = tunnel {
             os_log("Cleaning exiting Tunnel...")
@@ -32,7 +26,7 @@ final class Adapter /*: Sendable*/ {
             self.connection = nil
         }
 
-        os_log("Initalizing Tunnel...")
+        os_log("Initializing Tunnel...")
         tunnel = try Tunnel.init(
             privateKey: tunnelConfiguration.interface.privateKey,
             serverPublicKey: tunnelConfiguration.peers[0].publicKey,
@@ -75,6 +69,13 @@ final class Adapter /*: Sendable*/ {
         readPackets()
     }
 
+    public func stop() {
+        os_log("Stopping Adapter...")
+        connection?.cancel()
+        connection = nil
+        tunnel = nil
+    }
+
     private func handleTunnelResult(_ result: TunnelResult) {
         switch result {
             case .done:
@@ -97,8 +98,6 @@ final class Adapter /*: Sendable*/ {
         connection?.send(content: data, completion: .contentProcessed { error in
             if let error = error {
                 os_log("Send error: \(error)")
-            } else {
-                os_log("Message sent")
             }
         })
     }
@@ -108,7 +107,6 @@ final class Adapter /*: Sendable*/ {
         guard let connection = connection else { return }
         connection.receiveMessage { data, context, isComplete, error in
             if let data = data, let tunnel = self.tunnel {
-                print("Received from endpoint: \(data.count)")
                 self.handleTunnelResult(tunnel.read(src: data))
             }
             if error == nil {
@@ -123,7 +121,6 @@ final class Adapter /*: Sendable*/ {
         // Packets received to the tunnel's virtual interface.
         packetTunnelProvider?.packetFlow.readPacketObjects { packets in
             for packet in packets  {
-                os_log("Received packet \(packet.data.count)")
                 self.handleTunnelResult(tunnel.write(src: packet.data))
             }
             self.readPackets()

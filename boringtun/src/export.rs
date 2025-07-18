@@ -7,7 +7,7 @@ use crate::{
     serialization::{KeyBytes, KeyBytesError},
 };
 
-const MIN_BUFFER_SIZE: usize = 1532; // 148?
+const MIN_BUFFER_SIZE: usize = 148;
 
 #[derive(uniffi::Object)]
 pub struct Tunnel(Arc<Mutex<Tunn>>);
@@ -69,8 +69,7 @@ impl Tunnel {
         if let Ok(mut tunn) = self.0.lock() {
             tunn.update_timers(dst.as_mut_slice()).into()
         } else {
-            // FIXME
-            TunnelResult::Done
+            TunnelResult::Err(WireGuardError::LockFailed)
         }
     }
 
@@ -81,32 +80,29 @@ impl Tunnel {
             tunn.format_handshake_initiation(dst.as_mut_slice(), true)
                 .into()
         } else {
-            // FIXME
-            TunnelResult::Done
+            TunnelResult::Err(WireGuardError::LockFailed)
         }
     }
 
     #[must_use]
     pub fn read(&self, src: &[u8]) -> TunnelResult {
-        let dst_len = src.len().max(MIN_BUFFER_SIZE);
+        let dst_len = (src.len() + 32).max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];
         if let Ok(mut tunn) = self.0.lock() {
             tunn.decapsulate(None, src, dst.as_mut_slice()).into()
         } else {
-            // FIXME
-            TunnelResult::Done
+            TunnelResult::Err(WireGuardError::LockFailed)
         }
     }
 
     #[must_use]
     pub fn write(&self, src: &[u8]) -> TunnelResult {
-        let dst_len = src.len().max(MIN_BUFFER_SIZE);
+        let dst_len = (src.len() + 32).max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];
         if let Ok(mut tunn) = self.0.lock() {
             tunn.encapsulate(src, dst.as_mut_slice()).into()
         } else {
-            // FIXME
-            TunnelResult::Done
+            TunnelResult::Err(WireGuardError::LockFailed)
         }
     }
 }

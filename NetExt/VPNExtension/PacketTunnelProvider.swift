@@ -26,7 +26,6 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
             return
         }
 
-        // Keep 127.0.0.1 as remote address for WireGuard.
         let networkSettings = tunnelConfig.asNetworkSettings()
         self.setTunnelNetworkSettings(networkSettings) { error in
             self.logger.log("Set tunnel network settings returned \(error)")
@@ -47,7 +46,7 @@ class PacketTunnelProvider: NEPacketTunnelProvider {
 
     override func stopTunnel(with reason: NEProviderStopReason, completionHandler: @escaping () -> Void) {
         self.logger.log("\(#function)")
-        // Add code here to start the process of stopping the tunnel.
+        self.adapter.stop()
         completionHandler()
     }
 

@@ -93,4 +93,25 @@ struct IpAddrMaskTests {
         let mask_ipv6 = ipaddrmask_ipv6.mask()
         #expect("\(mask_ipv6)" == mask)
     }
+
+    @Test("Init from String") func ipaddrmask_from_string() throws {
+        let ip0 = IpAddrMask(fromString: "example.com")
+        #expect(ip0 == nil)
+
+        let ip1 = try #require(IpAddrMask(fromString: "192.168.100.0/24"))
+        #expect("\(ip1.address)" == "192.168.100.0")
+        #expect(ip1.cidr == 24)
+
+        let ip2 = try #require(IpAddrMask(fromString: "10.16.32.64/"))
+        #expect("\(ip2.address)" == "10.16.32.64")
+        #expect(ip2.cidr == 0)
+
+        let ip3 = try #require(IpAddrMask(fromString: "10.16.32.65"))
+        #expect("\(ip3.address)" == "10.16.32.65")
+        #expect(ip3.cidr == 0)
+
+        let ip4 = try #require(IpAddrMask(fromString: "fc00::0001/96"))
+        #expect("\(ip4.address)" == "fc00::1")
+        #expect(ip4.cidr == 96)
+    }
 }
