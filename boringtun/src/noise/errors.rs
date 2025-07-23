@@ -1,7 +1,7 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-#[derive(Debug, uniffi::Enum)]
+#[derive(Debug, uniffi::Error)]
 pub enum WireGuardError {
     DestinationBufferTooSmall,
     IncorrectPacketLength,
