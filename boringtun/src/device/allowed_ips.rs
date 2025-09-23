@@ -59,7 +59,7 @@ impl<D> AllowedIps<D> {
     }
 
     #[must_use]
-    pub fn iter(&self) -> Iter<D> {
+    pub fn iter(&self) -> Iter<'_, D> {
         Iter(
             self.ips
                 .iter()
