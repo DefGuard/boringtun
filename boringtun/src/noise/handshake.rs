@@ -526,11 +526,9 @@ impl Handshake {
             &hash,
         )?;
 
-        ring::constant_time::verify_slices_are_equal(
-            self.params.peer_static_public.as_bytes(),
-            &peer_static_public_decrypted,
-        )
-        .map_err(|_| WireGuardError::WrongKey)?;
+        if self.params.peer_static_public.as_bytes() != &peer_static_public_decrypted {
+            return Err(WireGuardError::WrongKey);
+        }
 
         // initiator.hash = HASH(initiator.hash || msg.encrypted_static)
         hash = b2s_hash(&hash, packet.encrypted_static);

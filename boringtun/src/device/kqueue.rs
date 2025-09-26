@@ -1,14 +1,19 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::Error;
+use std::{
+    io,
+    ops::Deref,
+    os::unix::io::RawFd,
+    ptr::{null, null_mut},
+    time::Duration,
+};
+
 use libc::*;
+
 use parking_lot::Mutex;
-use std::io;
-use std::ops::Deref;
-use std::os::unix::io::RawFd;
-use std::ptr::{null, null_mut};
-use std::time::Duration;
+
+use super::Error;
 
 /// A return type for the EventPoll::wait() function
 pub enum WaitResult<'a, H> {

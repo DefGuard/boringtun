@@ -1,13 +1,16 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::Error;
+use std::{
+    io,
+    mem::{size_of, size_of_val},
+    os::unix::io::{AsRawFd, RawFd},
+    ptr::null_mut,
+};
+
 use libc::*;
-use std::io;
-use std::mem::size_of;
-use std::mem::size_of_val;
-use std::os::unix::io::{AsRawFd, RawFd};
-use std::ptr::null_mut;
+
+use super::Error;
 
 const CTRL_NAME: &[u8] = b"com.apple.net.utun_control";
 
