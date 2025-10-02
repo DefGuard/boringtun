@@ -1,10 +1,14 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::Error;
+use std::{
+    io,
+    os::unix::io::{AsRawFd, RawFd},
+};
+
 use libc::*;
-use std::io;
-use std::os::unix::io::{AsRawFd, RawFd};
+
+use super::Error;
 
 const TUNSETIFF: u64 = 0x4004_54ca;
 

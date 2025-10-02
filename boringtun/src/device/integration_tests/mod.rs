@@ -281,7 +281,7 @@ mod tests {
                 addr_v4,
                 addr_v6,
                 started: false,
-                peers: vec![],
+                peers: Vec::new(),
             }
         }
 
@@ -779,7 +779,7 @@ mod tests {
 
         wg.start();
 
-        let mut threads = vec![];
+        let mut threads = Vec::new();
 
         for p in wg.peers {
             let pub_key = PublicKey::from(&p.key);
@@ -830,7 +830,7 @@ mod tests {
 
         wg.start();
 
-        let mut threads = vec![];
+        let mut threads = Vec::new();
 
         for p in wg.peers {
             let pub_key = PublicKey::from(&p.key);

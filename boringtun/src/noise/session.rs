@@ -1,11 +1,15 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::PacketData;
-use crate::noise::errors::WireGuardError;
+use std::{
+    fmt,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
 use parking_lot::Mutex;
 use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
-use std::sync::atomic::{AtomicUsize, Ordering};
+
+use super::{errors::WireGuardError, PacketData};
 
 pub struct Session {
     pub(crate) receiving_index: u32,
@@ -16,8 +20,8 @@ pub struct Session {
     receiving_key_counter: Mutex<ReceivingKeyCounterValidator>,
 }
 
-impl std::fmt::Debug for Session {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+impl fmt::Debug for Session {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(
             f,
             "Session: {}<- ->{}",
@@ -36,7 +40,7 @@ const WORD_SIZE: u64 = 64;
 const N_WORDS: u64 = 16; // Suffice to reorder 64*16 = 1024 packets; can be increased at will
 const N_BITS: u64 = WORD_SIZE * N_WORDS;
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 struct ReceivingKeyCounterValidator {
     /// In order to avoid replays while allowing for some reordering of the packets, we keep a
     /// bitmap of received packets, and the value of the highest counter
@@ -91,10 +95,10 @@ impl ReceivingKeyCounterValidator {
             // Drop if too far back
             return Err(WireGuardError::InvalidCounter);
         }
-        if !self.check_bit(counter) {
-            Ok(())
-        } else {
+        if self.check_bit(counter) {
             Err(WireGuardError::DuplicateCounter)
+        } else {
+            Ok(())
         }
     }
 
@@ -124,12 +128,12 @@ impl ReceivingKeyCounterValidator {
         // Packets where dropped, or maybe reordered, skip them and mark unused
         if counter - self.next >= N_BITS {
             // Too far ahead, clear all the bits
-            for c in self.bitmap.iter_mut() {
+            for c in &mut self.bitmap {
                 *c = 0;
             }
         } else {
             let mut i = self.next;
-            while i % WORD_SIZE != 0 && i < counter {
+            while !i.is_multiple_of(WORD_SIZE) && i < counter {
                 // Clear until i aligned to word size
                 self.clear_bit(i);
                 i += 1;
@@ -166,7 +170,7 @@ impl Session {
             ),
             sender: LessSafeKey::new(UnboundKey::new(&CHACHA20_POLY1305, &sending_key).unwrap()),
             sending_key_counter: AtomicUsize::new(0),
-            receiving_key_counter: Mutex::new(Default::default()),
+            receiving_key_counter: Mutex::new(ReceivingKeyCounterValidator::default()),
         }
     }
 
@@ -194,9 +198,12 @@ impl Session {
     /// dst - pre-allocated space to hold the encapsulating UDP packet to send over the network
     /// returns the size of the formatted packet
     pub(super) fn format_packet_data<'a>(&self, src: &[u8], dst: &'a mut [u8]) -> &'a mut [u8] {
-        if dst.len() < src.len() + super::DATA_OVERHEAD_SZ {
-            panic!("The destination buffer is too small");
-        }
+        assert!(
+            (dst.len() >= src.len() + super::DATA_OVERHEAD_SZ),
+            "The destination buffer is too small: {} >= {}",
+            dst.len(),
+            src.len() + super::DATA_OVERHEAD_SZ
+        );
 
         let sending_key_counter = self.sending_key_counter.fetch_add(1, Ordering::Relaxed) as u64;
 
@@ -235,14 +242,12 @@ impl Session {
     /// return the size of the encapsulated packet on success
     pub(super) fn receive_packet_data<'a>(
         &self,
-        packet: PacketData,
+        packet: &PacketData,
         dst: &'a mut [u8],
     ) -> Result<&'a mut [u8], WireGuardError> {
         let ct_len = packet.encrypted_encapsulated_packet.len();
-        if dst.len() < ct_len {
-            // This is a very incorrect use of the library, therefore panic and not error
-            panic!("The destination buffer is too small");
-        }
+        // This is a very incorrect use of the library, therefore panic and not error
+        assert!((dst.len() >= ct_len), "The destination buffer is too small");
         if packet.receiver_idx != self.receiving_index {
             return Err(WireGuardError::WrongIndex);
         }

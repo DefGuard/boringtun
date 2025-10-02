@@ -11,6 +11,7 @@ struct wireguard_tunnel; // This corresponds to the Rust type
 enum
 {
     MAX_WIREGUARD_PACKET_SIZE = 65536 + 64,
+    WG_KEY_LEN = 32,
 };
 
 enum result_type
@@ -40,7 +41,7 @@ struct stats
 
 struct x25519_key
 {
-    uint8_t key[32];
+    uint8_t key[WG_KEY_LEN];
 };
 
 // Generates a fresh x25519 secret key

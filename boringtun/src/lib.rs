@@ -10,8 +10,8 @@ pub mod device;
 
 #[cfg(feature = "ffi-bindings")]
 pub mod ffi;
-#[cfg(feature = "jni-bindings")]
-pub mod jni;
+// #[cfg(feature = "jni-bindings")]
+// pub mod jni;
 pub mod noise;
 
 #[cfg(not(feature = "mock-instant"))]
@@ -25,3 +25,7 @@ pub mod x25519 {
         EphemeralSecret, PublicKey, ReusableSecret, SharedSecret, StaticSecret,
     };
 }
+
+// UniFFI interface.
+pub mod export;
+uniffi::setup_scaffolding!();

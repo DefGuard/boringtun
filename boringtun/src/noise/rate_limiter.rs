@@ -1,21 +1,26 @@
-use super::handshake::{b2s_hash, b2s_keyed_mac_16, b2s_keyed_mac_16_2, b2s_mac_24};
-use crate::noise::handshake::{LABEL_COOKIE, LABEL_MAC1};
-use crate::noise::{HandshakeInit, HandshakeResponse, Packet, Tunn, TunnResult, WireGuardError};
+use std::{
+    net::IpAddr,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
+use aead::{
+    generic_array::GenericArray,
+    rand_core::{OsRng, RngCore},
+    AeadInPlace, KeyInit,
+};
+use chacha20poly1305::{Key, XChaCha20Poly1305};
 #[cfg(feature = "mock-instant")]
-use mock_instant::Instant;
-use std::net::IpAddr;
-use std::sync::atomic::{AtomicU64, Ordering};
+use mock_instant::global::Instant;
+use parking_lot::Mutex;
 
+use super::{
+    handshake::{
+        b2s_hash, b2s_keyed_mac_16, b2s_keyed_mac_16_2, b2s_mac_24, LABEL_COOKIE, LABEL_MAC1,
+    },
+    HandshakeInit, HandshakeResponse, Packet, Tunn, TunnResult, WireGuardError,
+};
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;
-
-use aead::generic_array::GenericArray;
-use aead::{AeadInPlace, KeyInit};
-use chacha20poly1305::{Key, XChaCha20Poly1305};
-use parking_lot::Mutex;
-use rand_core::{OsRng, RngCore};
-use ring::constant_time::verify_slices_are_equal;
 
 const COOKIE_REFRESH: u64 = 128; // Use 128 and not 120 so the compiler can optimize out the division
 const COOKIE_SIZE: usize = 16;
@@ -52,6 +57,7 @@ pub struct RateLimiter {
 }
 
 impl RateLimiter {
+    #[must_use]
     pub fn new(public_key: &crate::x25519::PublicKey, limit: u64) -> Self {
         let mut secret_key = [0u8; 16];
         OsRng.fill_bytes(&mut secret_key);
@@ -166,8 +172,9 @@ impl RateLimiter {
             let (mac1, mac2) = macs.split_at(16);
 
             let computed_mac1 = b2s_keyed_mac_16(&self.mac1_key, msg);
-            verify_slices_are_equal(&computed_mac1[..16], mac1)
-                .map_err(|_| TunnResult::Err(WireGuardError::InvalidMac))?;
+            if &computed_mac1[..16] != mac1 {
+                return Err(TunnResult::Err(WireGuardError::InvalidMac));
+            }
 
             if self.is_under_load() {
                 let addr = match src_addr {
@@ -179,7 +186,7 @@ impl RateLimiter {
                 let cookie = self.current_cookie(addr);
                 let computed_mac2 = b2s_keyed_mac_16_2(&cookie, msg, mac1);
 
-                if verify_slices_are_equal(&computed_mac2[..16], mac2).is_err() {
+                if &computed_mac2[..16] != mac2 {
                     let cookie_packet = self
                         .format_cookie_reply(sender_idx, cookie, mac1, dst)
                         .map_err(TunnResult::Err)?;

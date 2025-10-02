@@ -1,27 +1,28 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use boringtun::device::drop_privileges::drop_privileges;
-use boringtun::device::{DeviceConfig, DeviceHandle};
-use clap::{Arg, Command};
+use std::{fs::File, os::unix::net::UnixDatagram, process::exit, str::FromStr};
+
+use boringtun::device::{drop_privileges::drop_privileges, DeviceConfig, DeviceHandle};
+use clap::{value_parser, Arg, Command};
 use daemonize::Daemonize;
-use std::fs::File;
-use std::os::unix::net::UnixDatagram;
-use std::process::exit;
 use tracing::Level;
 
-fn check_tun_name(_v: String) -> Result<(), String> {
+fn check_tun_name<'a>(v: &str) -> Result<String, &'a str> {
     #[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
     {
-        if boringtun::device::tun::parse_utun_name(&_v).is_ok() {
-            Ok(())
+        if boringtun::device::tun::parse_utun_name(v).is_ok() {
+            Ok(v.into())
         } else {
-            Err("Tunnel name must have the format 'utun[0-9]+', use 'utun' for automatic assignment".to_owned())
+            Err(
+                "Tunnel name must have the format 'utun[0-9]+', use 'utun' for automatic \
+                assignment",
+            )
         }
     }
     #[cfg(not(target_os = "macos"))]
     {
-        Ok(())
+        Ok(v.into())
     }
 }
 
@@ -32,40 +33,39 @@ fn main() {
         .args(&[
             Arg::new("INTERFACE_NAME")
                 .required(true)
-                .takes_value(true)
-                .validator(|tunname| check_tun_name(tunname.to_string()))
+                .value_parser(check_tun_name)
                 .help("The name of the created interface"),
             Arg::new("foreground")
                 .long("foreground")
                 .short('f')
                 .help("Run and log in the foreground"),
             Arg::new("threads")
-                .takes_value(true)
                 .long("threads")
                 .short('t')
                 .env("WG_THREADS")
                 .help("Number of OS threads to use")
+                .value_parser(value_parser!(usize))
                 .default_value("4"),
             Arg::new("verbosity")
-                .takes_value(true)
                 .long("verbosity")
                 .short('v')
                 .env("WG_LOG_LEVEL")
-                .possible_values(["error", "info", "debug", "trace"])
+                .value_parser(["error", "info", "debug", "trace"])
                 .help("Log verbosity")
                 .default_value("error"),
             Arg::new("uapi-fd")
                 .long("uapi-fd")
                 .env("WG_UAPI_FD")
                 .help("File descriptor for the user API")
+                .value_parser(value_parser!(i32))
                 .default_value("-1"),
             Arg::new("tun-fd")
                 .long("tun-fd")
                 .env("WG_TUN_FD")
                 .help("File descriptor for an already-existing TUN device")
+                .value_parser(value_parser!(isize))
                 .default_value("-1"),
             Arg::new("log")
-                .takes_value(true)
                 .long("log")
                 .short('l')
                 .env("WG_LOG_FILE")
@@ -85,16 +85,17 @@ fn main() {
         ])
         .get_matches();
 
-    let background = !matches.is_present("foreground");
+    let background = !matches.contains_id("foreground");
     #[cfg(target_os = "linux")]
-    let uapi_fd: i32 = matches.value_of_t("uapi-fd").unwrap_or_else(|e| e.exit());
-    let tun_fd: isize = matches.value_of_t("tun-fd").unwrap_or_else(|e| e.exit());
-    let mut tun_name = matches.value_of("INTERFACE_NAME").unwrap();
-    if tun_fd >= 0 {
-        tun_name = matches.value_of("tun-fd").unwrap();
+    let uapi_fd = matches.get_one::<i32>("uapi-fd").unwrap();
+    let tun_fd = matches.get_one::<isize>("tun-fd").unwrap();
+    let mut tun_name = matches.get_one::<String>("INTERFACE_NAME").unwrap();
+    if *tun_fd >= 0 {
+        tun_name = matches.get_one::<String>("tun-fd").unwrap();
     }
-    let n_threads: usize = matches.value_of_t("threads").unwrap_or_else(|e| e.exit());
-    let log_level: Level = matches.value_of_t("verbosity").unwrap_or_else(|e| e.exit());
+    let n_threads = matches.get_one::<usize>("threads").unwrap();
+    let log_level = matches.get_one::<String>("verbosity").unwrap();
+    let log_level = Level::from_str(log_level).unwrap();
 
     // Create a socketpair to communicate between forked processes
     let (sock1, sock2) = UnixDatagram::pair().unwrap();
@@ -103,10 +104,10 @@ fn main() {
     let _guard;
 
     if background {
-        let log = matches.value_of("log").unwrap();
+        let log = matches.get_one::<String>("log").unwrap();
 
         let log_file =
-            File::create(log).unwrap_or_else(|_| panic!("Could not create log file {}", log));
+            File::create(log).unwrap_or_else(|_| panic!("Could not create log file {log}"));
 
         let (non_blocking, guard) = tracing_appender::non_blocking(log_file);
 
@@ -120,18 +121,18 @@ fn main() {
 
         let daemonize = Daemonize::new()
             .working_directory("/tmp")
-            .exit_action(move || {
+            .privileged_action(move || {
                 let mut b = [0u8; 1];
                 if sock2.recv(&mut b).is_ok() && b[0] == 1 {
                     println!("BoringTun started successfully");
                 } else {
                     eprintln!("BoringTun failed to start");
                     exit(1);
-                };
+                }
             });
 
         match daemonize.start() {
-            Ok(_) => tracing::info!("BoringTun started successfully"),
+            Ok(()) => tracing::info!("BoringTun started successfully"),
             Err(e) => {
                 tracing::error!(error = ?e);
                 exit(1);
@@ -145,12 +146,12 @@ fn main() {
     }
 
     let config = DeviceConfig {
-        n_threads,
+        n_threads: *n_threads,
         #[cfg(target_os = "linux")]
-        uapi_fd,
-        use_connected_socket: !matches.is_present("disable-connected-udp"),
+        uapi_fd: *uapi_fd,
+        use_connected_socket: !matches.contains_id("disable-connected-udp"),
         #[cfg(target_os = "linux")]
-        use_multi_queue: !matches.is_present("disable-multi-queue"),
+        use_multi_queue: !matches.contains_id("disable-multi-queue"),
     };
 
     let mut device_handle: DeviceHandle = match DeviceHandle::new(tun_name, config) {
@@ -163,7 +164,7 @@ fn main() {
         }
     };
 
-    if !matches.is_present("disable-drop-privileges") {
+    if !matches.contains_id("disable-drop-privileges") {
         if let Err(e) = drop_privileges() {
             tracing::error!(message = "Failed to drop privileges", error = ?e);
             sock1.send(&[0]).unwrap();

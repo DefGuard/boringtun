@@ -21,7 +21,7 @@ impl<'a, D> FromIterator<(&'a AllowedIP, D)> for AllowedIps<D> {
         let mut allowed_ips = AllowedIps::new();
 
         for (ip, data) in iter {
-            allowed_ips.insert(ip.addr, ip.cidr as u32, data);
+            allowed_ips.insert(ip.addr, u32::from(ip.cidr), data);
         }
 
         allowed_ips
@@ -29,6 +29,7 @@ impl<'a, D> FromIterator<(&'a AllowedIP, D)> for AllowedIps<D> {
 }
 
 impl<D> AllowedIps<D> {
+    #[must_use]
     pub fn new() -> Self {
         Self {
             ips: IpNetworkTable::new(),
@@ -48,6 +49,7 @@ impl<D> AllowedIps<D> {
         )
     }
 
+    #[must_use]
     pub fn find(&self, key: IpAddr) -> Option<&D> {
         self.ips.longest_match(key).map(|(_net, data)| data)
     }
@@ -56,7 +58,8 @@ impl<D> AllowedIps<D> {
         self.ips.retain(|_, v| !predicate(v));
     }
 
-    pub fn iter(&self) -> Iter<D> {
+    #[must_use]
+    pub fn iter(&self) -> Iter<'_, D> {
         Iter(
             self.ips
                 .iter()

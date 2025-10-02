@@ -1,7 +1,9 @@
 use std::time::Duration;
 
-use nix::sys::time::TimeSpec;
-use nix::time::{clock_gettime, ClockId};
+use nix::{
+    sys::time::TimeSpec,
+    time::{clock_gettime, ClockId},
+};
 
 #[cfg(any(
     target_os = "macos",

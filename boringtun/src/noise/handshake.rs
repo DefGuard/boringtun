@@ -1,23 +1,28 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::{HandshakeInit, HandshakeResponse, PacketCookieReply};
-use crate::noise::errors::WireGuardError;
-use crate::noise::session::Session;
+use std::{
+    convert::TryInto,
+    fmt,
+    time::{Duration, SystemTime},
+};
+
+use aead::{rand_core::OsRng, Aead, Payload};
+use blake2::{
+    digest::{FixedOutput, KeyInit},
+    Blake2s256, Blake2sMac, Digest,
+};
+use chacha20poly1305::XChaCha20Poly1305;
+#[cfg(feature = "mock-instant")]
+use mock_instant::global::Instant;
+use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
+
+use super::{
+    errors::WireGuardError, session::Session, HandshakeInit, HandshakeResponse, PacketCookieReply,
+};
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;
 use crate::x25519;
-use aead::{Aead, Payload};
-use blake2::digest::{FixedOutput, KeyInit};
-use blake2::{Blake2s256, Blake2sMac, Digest};
-use chacha20poly1305::XChaCha20Poly1305;
-use rand_core::OsRng;
-use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
-use std::convert::TryInto;
-use std::time::{Duration, SystemTime};
-
-#[cfg(feature = "mock-instant")]
-use mock_instant::Instant;
 
 pub(crate) const LABEL_MAC1: &[u8; 8] = b"mac1----";
 pub(crate) const LABEL_COOKIE: &[u8; 8] = b"cookie--";
@@ -92,7 +97,7 @@ fn aead_chacha20_seal(ciphertext: &mut [u8], key: &[u8], counter: u64, data: &[u
     let mut nonce: [u8; 12] = [0; 12];
     nonce[4..12].copy_from_slice(&counter.to_le_bytes());
 
-    aead_chacha20_seal_inner(ciphertext, key, nonce, data, aad)
+    aead_chacha20_seal_inner(ciphertext, key, nonce, data, aad);
 }
 
 #[inline]
@@ -244,8 +249,8 @@ struct NoiseParams {
     preshared_key: Option<[u8; KEY_LEN]>,
 }
 
-impl std::fmt::Debug for NoiseParams {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for NoiseParams {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("NoiseParams")
             .field("static_public", &self.static_public)
             .field("static_private", &"<redacted>")
@@ -265,8 +270,8 @@ struct HandshakeInitSentState {
     time_sent: Instant,
 }
 
-impl std::fmt::Debug for HandshakeInitSentState {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for HandshakeInitSentState {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_struct("HandshakeInitSentState")
             .field("local_index", &self.local_index)
             .field("hash", &self.hash)
@@ -429,7 +434,7 @@ impl Handshake {
             state: HandshakeState::None,
             last_handshake_timestamp: Tai64N::zero(),
             stamper: TimeStamper::new(),
-            cookies: Default::default(),
+            cookies: Cookies::default(),
             last_rtt: None,
         }
     }
@@ -475,12 +480,12 @@ impl Handshake {
         private_key: x25519::StaticSecret,
         public_key: x25519::PublicKey,
     ) {
-        self.params.set_static_private(private_key, public_key)
+        self.params.set_static_private(private_key, public_key);
     }
 
     pub(super) fn receive_handshake_initialization<'a>(
         &mut self,
-        packet: HandshakeInit,
+        packet: &HandshakeInit,
         dst: &'a mut [u8],
     ) -> Result<(&'a mut [u8], Session), WireGuardError> {
         // initiator.chaining_key = HASH(CONSTRUCTION)
@@ -521,11 +526,9 @@ impl Handshake {
             &hash,
         )?;
 
-        ring::constant_time::verify_slices_are_equal(
-            self.params.peer_static_public.as_bytes(),
-            &peer_static_public_decrypted,
-        )
-        .map_err(|_| WireGuardError::WrongKey)?;
+        if self.params.peer_static_public.as_bytes() != &peer_static_public_decrypted {
+            return Err(WireGuardError::WrongKey);
+        }
 
         // initiator.hash = HASH(initiator.hash || msg.encrypted_static)
         hash = b2s_hash(&hash, packet.encrypted_static);
@@ -564,7 +567,7 @@ impl Handshake {
 
     pub(super) fn receive_handshake_response(
         &mut self,
-        packet: HandshakeResponse,
+        packet: &HandshakeResponse,
     ) -> Result<Session, WireGuardError> {
         // Check if there is a handshake awaiting a response and return the correct one
         let (state, is_previous) = match (&self.state, &self.previous) {
@@ -646,13 +649,10 @@ impl Handshake {
 
     pub(super) fn receive_cookie_reply(
         &mut self,
-        packet: PacketCookieReply,
+        packet: &PacketCookieReply,
     ) -> Result<(), WireGuardError> {
-        let mac1 = match self.cookies.last_mac1 {
-            Some(mac) => mac,
-            None => {
-                return Err(WireGuardError::UnexpectedPacket);
-            }
+        let Some(mac1) = self.cookies.last_mac1 else {
+            return Err(WireGuardError::UnexpectedPacket);
         };
 
         let local_index = self.cookies.index;
@@ -679,11 +679,7 @@ impl Handshake {
     }
 
     // Compute and append mac1 and mac2 to a handshake message
-    fn append_mac1_and_mac2<'a>(
-        &mut self,
-        local_index: u32,
-        dst: &'a mut [u8],
-    ) -> Result<&'a mut [u8], WireGuardError> {
+    fn append_mac1_and_mac2<'a>(&mut self, local_index: u32, dst: &'a mut [u8]) -> &'a mut [u8] {
         let mac1_off = dst.len() - 32;
         let mac2_off = dst.len() - 16;
 
@@ -703,7 +699,7 @@ impl Handshake {
 
         self.cookies.index = local_index;
         self.cookies.last_mac1 = Some(msg_mac1);
-        Ok(dst)
+        dst
     }
 
     pub(super) fn format_handshake_initiation<'a>(
@@ -783,7 +779,7 @@ impl Handshake {
             }),
         );
 
-        self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_INIT_SZ])
+        Ok(self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_INIT_SZ]))
     }
 
     fn format_handshake_response<'a>(
@@ -795,16 +791,14 @@ impl Handshake {
         }
 
         let state = std::mem::replace(&mut self.state, HandshakeState::None);
-        let (mut chaining_key, mut hash, peer_ephemeral_public, peer_index) = match state {
-            HandshakeState::InitReceived {
-                chaining_key,
-                hash,
-                peer_ephemeral_public,
-                peer_index,
-            } => (chaining_key, hash, peer_ephemeral_public, peer_index),
-            _ => {
-                panic!("Unexpected attempt to call send_handshake_response");
-            }
+        let HandshakeState::InitReceived {
+            mut chaining_key,
+            mut hash,
+            peer_ephemeral_public,
+            peer_index,
+        } = state
+        else {
+            panic!("Unexpected attempt to call send_handshake_response");
         };
 
         let (message_type, rest) = dst.split_at_mut(4);
@@ -874,7 +868,7 @@ impl Handshake {
         let temp2 = b2s_hmac(&temp1, &[0x01]);
         let temp3 = b2s_hmac2(&temp1, &temp2, &[0x02]);
 
-        let dst = self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_RESP_SZ])?;
+        let dst = self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_RESP_SZ]);
 
         Ok((dst, Session::new(local_index, peer_index, temp2, temp3)))
     }
@@ -932,7 +926,7 @@ mod tests {
 
         aead_chacha20_seal(&mut encrypted_nothing, &key, counter, &[], &aad);
 
-        eprintln!("encrypted_nothing: {:?}", encrypted_nothing);
+        eprintln!("encrypted_nothing: {encrypted_nothing:?}");
 
         aead_chacha20_open(&mut [], &key, counter, &encrypted_nothing, &aad)
             .expect("Should open what we just sealed");
