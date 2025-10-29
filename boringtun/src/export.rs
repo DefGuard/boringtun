@@ -12,6 +12,12 @@ const MIN_BUFFER_SIZE: usize = 148;
 #[derive(uniffi::Object)]
 pub struct Tunnel(Arc<Mutex<Tunn>>);
 
+#[derive(uniffi::Record)]
+pub struct TunnelStats {
+    tx_bytes: u64,
+    rx_bytes: u64,
+}
+
 /// Mapping of `TunnResult` which can be exported with UniFFI.
 #[derive(uniffi::Enum)]
 pub enum TunnelResult {
@@ -103,6 +109,22 @@ impl Tunnel {
             tunn.encapsulate(src, dst.as_mut_slice()).into()
         } else {
             TunnelResult::Err(WireGuardError::LockFailed)
+        }
+    }
+
+    #[must_use]
+    pub fn stats(&self) -> TunnelStats {
+        if let Ok(tunn) = self.0.lock() {
+            let (_, tx_bytes, rx_bytes, ..) = tunn.stats();
+            TunnelStats {
+                tx_bytes: tx_bytes as u64,
+                rx_bytes: rx_bytes as u64,
+            }
+        } else {
+            TunnelStats {
+                tx_bytes: 0,
+                rx_bytes: 0,
+            }
         }
     }
 }

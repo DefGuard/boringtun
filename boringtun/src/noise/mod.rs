@@ -72,8 +72,8 @@ pub struct Tunn {
     packet_queue: VecDeque<Vec<u8>>,
     /// Keeps tabs on the expiring timers
     timers: timers::Timers,
-    tx_bytes: usize,
-    rx_bytes: usize,
+    pub(crate) tx_bytes: usize,
+    pub(crate) rx_bytes: usize,
     rate_limiter: Arc<RateLimiter>,
 }
 
