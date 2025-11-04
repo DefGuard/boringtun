@@ -9,14 +9,16 @@ use nix::{
     target_os = "macos",
     target_os = "ios",
     target_os = "tvos",
-    target_os = "freebsd"
+    target_os = "freebsd",
+    target_os = "netbsd"
 ))]
 const CLOCK_ID: ClockId = ClockId::CLOCK_MONOTONIC;
 #[cfg(not(any(
     target_os = "macos",
     target_os = "ios",
     target_os = "tvos",
-    target_os = "freebsd"
+    target_os = "freebsd",
+    target_os = "netbsd"
 )))]
 const CLOCK_ID: ClockId = ClockId::CLOCK_BOOTTIME;
 

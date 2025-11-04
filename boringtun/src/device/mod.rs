@@ -9,7 +9,13 @@ pub mod drop_privileges;
 mod integration_tests;
 pub mod peer;
 
-#[cfg(any(target_os = "macos", target_os = "ios", target_os = "tvos"))]
+#[cfg(any(
+    target_os = "macos",
+    target_os = "ios",
+    target_os = "tvos",
+    target_os = "freebsd",
+    target_os = "netbsd"
+))]
 #[path = "kqueue.rs"]
 pub mod poll;
 
@@ -23,6 +29,10 @@ pub mod tun;
 
 #[cfg(target_os = "linux")]
 #[path = "tun_linux.rs"]
+pub mod tun;
+
+#[cfg(target_os = "freebsd")]
+#[path = "tun_bsd.rs"]
 pub mod tun;
 
 use std::{
