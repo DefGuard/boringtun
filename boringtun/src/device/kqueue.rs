@@ -110,7 +110,12 @@ impl<H: Send + Sync> EventPoll<H> {
                 flags,
                 fflags: 0,
                 data: 0,
+                #[cfg(target_os = "netbsd")]
+                udata: 0,
+                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
+                #[cfg(target_os = "freebsd")]
+                ext: [0u64; 4],
             },
             handler,
             kind: EventKind::FD,
@@ -133,7 +138,12 @@ impl<H: Send + Sync> EventPoll<H> {
                     .unwrap()
                     .checked_add(u64::from(period.subsec_nanos()))
                     .unwrap() as _,
+                #[cfg(target_os = "netbsd")]
+                udata: 0,
+                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
+                #[cfg(target_os = "freebsd")]
+                ext: [0u64; 4],
             },
             handler,
             kind: EventKind::Timer,
@@ -151,7 +161,12 @@ impl<H: Send + Sync> EventPoll<H> {
                 flags: EV_ENABLE,
                 fflags: 0,
                 data: 0,
+                #[cfg(target_os = "netbsd")]
+                udata: 0,
+                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
+                #[cfg(target_os = "freebsd")]
+                ext: [0u64; 4],
             },
             handler,
             kind: EventKind::Notifier,
@@ -169,7 +184,12 @@ impl<H: Send + Sync> EventPoll<H> {
                 flags: EV_ENABLE | EV_DISPATCH,
                 fflags: 0,
                 data: 0,
+                #[cfg(target_os = "netbsd")]
+                udata: 0,
+                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
+                #[cfg(target_os = "freebsd")]
+                ext: [0u64; 4],
             },
             handler,
             kind: EventKind::Signal,
@@ -189,13 +209,21 @@ impl<H: Send + Sync> EventPoll<H> {
             flags: 0,
             fflags: 0,
             data: 0,
+            #[cfg(target_os = "netbsd")]
+            udata: 0,
+            #[cfg(not(target_os = "netbsd"))]
             udata: null_mut(),
+            #[cfg(target_os = "freebsd")]
+            ext: [0u64; 4],
         };
 
         if unsafe { kevent(self.kqueue, null(), 0, &mut event, 1, null()) } == -1 {
             return WaitResult::Error(io::Error::last_os_error().to_string());
         }
 
+        #[cfg(target_os = "netbsd")]
+        let event_data = unsafe { (event.udata as *mut Event<H>).as_ref().unwrap() };
+        #[cfg(not(target_os = "netbsd"))]
         let event_data = unsafe { event.udata.cast::<Event<H>>().as_ref().unwrap() };
 
         let guard = EventGuard {
@@ -234,7 +262,14 @@ impl<H: Send + Sync> EventPoll<H> {
         let mut ev = Box::new(ev);
         // The inner event points back to the wrapper
         ev.event.ident = trigger as _;
-        ev.event.udata = std::ptr::from_mut::<Event<H>>(ev.as_mut()).cast();
+        #[cfg(target_os = "netbsd")]
+        {
+            ev.event.udata = std::ptr::from_mut::<Event<H>>(ev.as_mut()) as intptr_t;
+        }
+        #[cfg(not(target_os = "netbsd"))]
+        {
+            ev.event.udata = std::ptr::from_mut::<Event<H>>(ev.as_mut()).cast();
+        }
 
         let mut kev = ev.event;
         kev.flags |= EV_ADD;

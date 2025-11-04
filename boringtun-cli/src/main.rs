@@ -4,7 +4,7 @@
 use std::{fs::File, os::unix::net::UnixDatagram, process::exit, str::FromStr};
 
 use boringtun::device::{drop_privileges::drop_privileges, DeviceConfig, DeviceHandle};
-use clap::{value_parser, Arg, Command};
+use clap::{value_parser, Arg, ArgAction, Command};
 use daemonize::Daemonize;
 use tracing::Level;
 
@@ -38,6 +38,7 @@ fn main() {
             Arg::new("foreground")
                 .long("foreground")
                 .short('f')
+                .action(ArgAction::SetTrue)
                 .help("Run and log in the foreground"),
             Arg::new("threads")
                 .long("threads")
@@ -73,19 +74,22 @@ fn main() {
                 .default_value("/tmp/boringtun.out"),
             Arg::new("disable-drop-privileges")
                 .long("disable-drop-privileges")
+                .action(ArgAction::SetTrue)
                 .env("WG_SUDO")
                 .help("Do not drop sudo privileges"),
             Arg::new("disable-connected-udp")
                 .long("disable-connected-udp")
+                .action(ArgAction::SetTrue)
                 .help("Disable connected UDP sockets to each peer"),
             #[cfg(target_os = "linux")]
             Arg::new("disable-multi-queue")
                 .long("disable-multi-queue")
+                .action(ArgAction::SetTrue)
                 .help("Disable using multiple queues for the tunnel interface"),
         ])
         .get_matches();
 
-    let background = !matches.contains_id("foreground");
+    let background = !matches.get_flag("foreground");
     #[cfg(target_os = "linux")]
     let uapi_fd = matches.get_one::<i32>("uapi-fd").unwrap();
     let tun_fd = matches.get_one::<isize>("tun-fd").unwrap();
@@ -149,9 +153,9 @@ fn main() {
         n_threads: *n_threads,
         #[cfg(target_os = "linux")]
         uapi_fd: *uapi_fd,
-        use_connected_socket: !matches.contains_id("disable-connected-udp"),
+        use_connected_socket: !matches.get_flag("disable-connected-udp"),
         #[cfg(target_os = "linux")]
-        use_multi_queue: !matches.contains_id("disable-multi-queue"),
+        use_multi_queue: !matches.get_flag("disable-multi-queue"),
     };
 
     let mut device_handle: DeviceHandle = match DeviceHandle::new(tun_name, config) {
@@ -164,7 +168,7 @@ fn main() {
         }
     };
 
-    if !matches.contains_id("disable-drop-privileges") {
+    if !matches.get_flag("disable-drop-privileges") {
         if let Err(e) = drop_privileges() {
             tracing::error!(message = "Failed to drop privileges", error = ?e);
             sock1.send(&[0]).unwrap();
