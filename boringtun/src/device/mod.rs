@@ -649,11 +649,7 @@ impl Device {
                         Packet::PacketData(p) => d.peers_by_idx.get(&(p.receiver_idx >> 8)),
                     };
 
-                    let peer = match peer {
-                        None => continue,
-                        Some(peer) => peer,
-                    };
-
+                    let Some(peer) = peer else { continue };
                     let mut p = peer.lock();
 
                     // We found a peer, use it to decapsulate the message+

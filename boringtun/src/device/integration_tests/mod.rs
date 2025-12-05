@@ -477,7 +477,7 @@ mod tests {
     fn test_wireguard_set() {
         let port = next_port();
         let private_key = StaticSecret::random_from_rng(OsRng);
-        let own_public_key = PublicKey::from(&private_key);
+        // let own_public_key = PublicKey::from(&private_key);
 
         let wg = WGHandle::init("192.0.2.0".parse().unwrap(), "::2".parse().unwrap());
         assert!(wg.wg_get().ends_with("errno=0\n\n"));
@@ -488,8 +488,8 @@ mod tests {
         assert_eq!(
             wg.wg_get(),
             format!(
-                "own_public_key={}\nlisten_port={}\nerrno=0\n\n",
-                encode(own_public_key.as_bytes()),
+                "private_key={}\nlisten_port={}\nerrno=0\n\n",
+                encode(private_key.as_bytes()),
                 port
             )
         );
@@ -517,7 +517,7 @@ mod tests {
         assert_eq!(
             wg.wg_get(),
             format!(
-                "own_public_key={}\n\
+                "private_key={}\n\
                  listen_port={}\n\
                  public_key={}\n\
                  endpoint={}\n\
@@ -526,7 +526,7 @@ mod tests {
                  rx_bytes=0\n\
                  tx_bytes=0\n\
                  errno=0\n\n",
-                encode(own_public_key.as_bytes()),
+                encode(private_key.as_bytes()),
                 port,
                 encode(peer_pub_key.as_bytes()),
                 endpoint,
