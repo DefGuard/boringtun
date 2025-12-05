@@ -161,7 +161,7 @@ impl Device {
 fn api_get(writer: &mut BufWriter<&UnixStream>, d: &Device) -> i32 {
     // get command requires an empty line, but there is no reason to be religious about it
     if let Some(ref k) = d.key_pair {
-        writeln!(writer, "own_public_key={}", encode_hex(k.1.as_bytes()));
+        writeln!(writer, "private_key={}", encode_hex(k.0.as_bytes()));
     }
 
     if d.listen_port != 0 {

@@ -177,9 +177,8 @@ impl RateLimiter {
             }
 
             if self.is_under_load() {
-                let addr = match src_addr {
-                    None => return Err(TunnResult::Err(WireGuardError::UnderLoad)),
-                    Some(addr) => addr,
+                let Some(addr) = src_addr else {
+                    return Err(TunnResult::Err(WireGuardError::UnderLoad));
                 };
 
                 // Only given an address can we validate mac2
