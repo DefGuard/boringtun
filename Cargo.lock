@@ -177,46 +177,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "boringtun"
-version = "0.6.0"
-dependencies = [
- "aead",
- "base64",
- "blake2",
- "chacha20poly1305",
- "criterion",
- "etherparse",
- "hex",
- "hmac",
- "ip_network",
- "ip_network_table",
- "libc",
- "mock_instant",
- "nix",
- "parking_lot",
- "ring",
- "socket2",
- "thiserror",
- "tracing",
- "tracing-subscriber",
- "uniffi",
- "untrusted",
- "x25519-dalek",
-]
-
-[[package]]
-name = "boringtun-cli"
-version = "0.6.0"
-dependencies = [
- "boringtun",
- "clap",
- "daemonize",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -522,6 +482,46 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ab8bfdaacb3c887a54d41bdf48d3af8873b3f5566469f8ba21b92057509f116e"
 dependencies = [
  "libc",
+]
+
+[[package]]
+name = "defguard-boringtun"
+version = "0.6.0"
+dependencies = [
+ "aead",
+ "base64",
+ "blake2",
+ "chacha20poly1305",
+ "criterion",
+ "etherparse",
+ "hex",
+ "hmac",
+ "ip_network",
+ "ip_network_table",
+ "libc",
+ "mock_instant",
+ "nix",
+ "parking_lot",
+ "ring",
+ "socket2",
+ "thiserror",
+ "tracing",
+ "tracing-subscriber",
+ "uniffi",
+ "untrusted",
+ "x25519-dalek",
+]
+
+[[package]]
+name = "defguard-boringtun-cli"
+version = "0.6.0"
+dependencies = [
+ "clap",
+ "daemonize",
+ "defguard-boringtun",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
 ]
 
 [[package]]
