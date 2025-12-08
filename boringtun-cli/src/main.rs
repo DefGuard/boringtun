@@ -3,7 +3,7 @@
 
 use std::{fs::File, os::unix::net::UnixDatagram, process::exit, str::FromStr};
 
-use boringtun::device::{drop_privileges::drop_privileges, DeviceConfig, DeviceHandle};
+use defguard_boringtun::device::{drop_privileges::drop_privileges, DeviceConfig, DeviceHandle};
 use clap::{value_parser, Arg, ArgAction, Command};
 use daemonize::Daemonize;
 use tracing::Level;
