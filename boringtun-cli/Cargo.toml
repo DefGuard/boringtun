@@ -1,5 +1,5 @@
 [package]
-name = "defguard-boringtun-cli"
+name = "defguard_boringtun_cli"
 description = "an implementation of the WireGuard® protocol designed for portability and speed"
 version = "0.6.0"
 authors = [
@@ -15,7 +15,7 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.5", features = ["env"] }
-defguard-boringtun = { path = "../boringtun", version = "0.6.0", features = ["device"] }
+defguard_boringtun = { path = "../boringtun", version = "0.6.0", features = ["device"] }
 daemonize = "0.5"
 tracing = "0.1"
 tracing-appender = "0.2"

@@ -485,7 +485,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "defguard-boringtun"
+name = "defguard_boringtun"
 version = "0.6.0"
 dependencies = [
  "aead",
@@ -513,12 +513,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "defguard-boringtun-cli"
+name = "defguard_boringtun_cli"
 version = "0.6.0"
 dependencies = [
  "clap",
  "daemonize",
- "defguard-boringtun",
+ "defguard_boringtun",
  "tracing",
  "tracing-appender",
  "tracing-subscriber",
