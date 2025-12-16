@@ -73,61 +73,61 @@ impl Tunnel {
     #[must_use]
     pub fn tick(&self) -> TunnelResult {
         let mut dst = vec![0; MIN_BUFFER_SIZE];
-        if let Ok(mut tunn) = self.0.lock() {
+        match self.0.lock() { Ok(mut tunn) => {
             tunn.update_timers(dst.as_mut_slice()).into()
-        } else {
+        } _ => {
             TunnelResult::Err(WireGuardError::LockFailed)
-        }
+        }}
     }
 
     #[must_use]
     pub fn force_handshake(&self) -> TunnelResult {
         let mut dst = vec![0; MIN_BUFFER_SIZE];
-        if let Ok(mut tunn) = self.0.lock() {
+        match self.0.lock() { Ok(mut tunn) => {
             tunn.format_handshake_initiation(dst.as_mut_slice(), true)
                 .into()
-        } else {
+        } _ => {
             TunnelResult::Err(WireGuardError::LockFailed)
-        }
+        }}
     }
 
     #[must_use]
     pub fn read(&self, src: &[u8]) -> TunnelResult {
         let dst_len = (src.len() + 32).max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];
-        if let Ok(mut tunn) = self.0.lock() {
+        match self.0.lock() { Ok(mut tunn) => {
             tunn.decapsulate(None, src, dst.as_mut_slice()).into()
-        } else {
+        } _ => {
             TunnelResult::Err(WireGuardError::LockFailed)
-        }
+        }}
     }
 
     #[must_use]
     pub fn write(&self, src: &[u8]) -> TunnelResult {
         let dst_len = (src.len() + 32).max(MIN_BUFFER_SIZE);
         let mut dst = vec![0; dst_len];
-        if let Ok(mut tunn) = self.0.lock() {
+        match self.0.lock() { Ok(mut tunn) => {
             tunn.encapsulate(src, dst.as_mut_slice()).into()
-        } else {
+        } _ => {
             TunnelResult::Err(WireGuardError::LockFailed)
-        }
+        }}
     }
 
     #[must_use]
     pub fn stats(&self) -> TunnelStats {
-        if let Ok(tunn) = self.0.lock() {
+        match self.0.lock() { Ok(tunn) => {
             let (time, tx_bytes, rx_bytes, ..) = tunn.stats();
             TunnelStats {
                 tx_bytes: tx_bytes as u64,
                 rx_bytes: rx_bytes as u64,
                 last_handshake: time.map_or(0, |dur| dur.as_secs()),
             }
-        } else {
+        } _ => {
             TunnelStats {
                 tx_bytes: 0,
                 rx_bytes: 0,
                 last_handshake: 0,
             }
-        }
+        }}
     }
 }

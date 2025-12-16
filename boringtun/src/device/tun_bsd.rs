@@ -50,11 +50,19 @@ pub struct ifreq {
 
 #[cfg(target_os = "macos")]
 const CTLIOCGINFO: u64 = 0xc064_4e03;
+#[cfg(any(target_os = "macos", target_os = "freebsd"))]
 const SIOCGIFMTU: u64 = 0xc020_6933;
+#[cfg(target_os = "netbsd")]
+const SIOCGIFMTU: u64 = 0xc090_697e;
 #[cfg(target_os = "freebsd")]
 const TUNSIFHEAD: u64 = 0x8004_7460;
+#[cfg(target_os = "netbsd")]
+const TUNSIFHEAD: u64 = 0x8004_7442;
+const TUNSLMODE: u64 = 0x8004_7457;
 #[cfg(target_os = "freebsd")]
 const SIOCIFDESTROY: u64 = 0x8020_6979;
+#[cfg(target_os = "netbsd")]
+const SIOCIFDESTROY: u64 = 0x8090_6979;
 #[cfg(target_os = "freebsd")]
 const SIOCSIFNAME: u64 = 0x8020_6928;
 
@@ -65,8 +73,22 @@ extern "C" {
 
 #[cfg(target_os = "freebsd")]
 fn devname(fd: RawFd) -> String {
-    let name = unsafe { fdevname(fd) };
-    let c_str = unsafe { std::ffi::CStr::from_ptr(name) };
+    let c_str = unsafe {
+        let name = fdevname(fd);
+        std::ffi::CStr::from_ptr(name)
+    };
+    c_str.to_string_lossy().into_owned()
+}
+
+/// NetBSD doesn't have fdevname().
+#[cfg(target_os = "netbsd")]
+fn devname(fd: RawFd) -> String {
+    let c_str = unsafe {
+        let buf = std::mem::zeroed();
+        fstat(fd, buf);
+        let name = libc::devname((*buf).st_rdev, S_IFCHR);
+        std::ffi::CStr::from_ptr(name)
+    };
     c_str.to_string_lossy().into_owned()
 }
 
@@ -79,8 +101,8 @@ pub struct TunSocket {
 impl Drop for TunSocket {
     fn drop(&mut self) {
         unsafe { close(self.fd) };
-        #[cfg(target_os = "freebsd")]
-        // On FreeBSD we want to remove the tunnel manually
+        #[cfg(any(target_os = "freebsd", target_os = "netbsd"))]
+        // On BSD we want to remove the tunnel manually
         TunSocket::remove(&self.name).ok();
     }
 }
@@ -94,7 +116,8 @@ impl AsRawFd for TunSocket {
 #[cfg(target_os = "macos")]
 // On Darwin tunnel can only be named utunXXX
 pub fn parse_utun_name(name: &str) -> Result<u32, Error> {
-    if !name.starts_with("utun") {
+    const TUN_NAME: &str = "utun";
+    if !name.starts_with(TUN_NAME) {
         return Err(Error::InvalidTunnelName);
     }
 
@@ -161,6 +184,41 @@ impl TunSocket {
         Ok(TunSocket { fd, name })
     }
 
+    #[cfg(target_os = "netbsd")]
+    pub fn new(name: &str) -> Result<TunSocket, Error> {
+        let name_cstr = std::ffi::CString::new(name).unwrap();
+        if unsafe { if_nametoindex(name_cstr.as_ptr()) } > 0 {
+            // An interface with the desired name already exists, try to remove it first
+            // it will only succeed if the interface is unused
+            TunSocket::remove(name)?;
+        }
+
+        // Open a new tunnel
+        // TODO: as in OpenVPN, try to open /dev/tunN, where N = 0..255;
+        let devpath = format!("/dev/{name}");
+        let fd = match unsafe { open(devpath.as_bytes().as_ptr() as _, O_RDWR) } {
+            -1 => return Err(Error::Socket(io::Error::last_os_error())),
+            fd => fd,
+        };
+
+        let disable: c_int = 1;
+        // Disable extended modes.
+        if unsafe { ioctl(fd, TUNSLMODE, &disable) } < 0 {
+            return Err(Error::IOCtl(io::Error::last_os_error()));
+        }
+        // This enables 4 byte header to allow IPv6 packets.
+        let enable: c_int = 1;
+        if unsafe { ioctl(fd, TUNSIFHEAD, &enable) } < 0 {
+            // FIXME: don't ignore
+            // return Err(Error::IOCtl(io::Error::last_os_error()));
+        }
+
+        Ok(TunSocket {
+            fd,
+            name: name.to_owned(),
+        })
+    }
+
     #[cfg(target_os = "freebsd")]
     pub fn new(name: &str) -> Result<TunSocket, Error> {
         let name_cstr = std::ffi::CString::new(name).unwrap();
@@ -176,7 +234,7 @@ impl TunSocket {
             fd => fd,
         };
 
-        // This enables 4 byte header to allow ipv6 packets
+        // This enables 4 byte header to allow IPv6 packets.
         let enable: c_int = 1;
         if unsafe { ioctl(fd, TUNSIFHEAD, &enable) } < 0 {
             return Err(Error::IOCtl(io::Error::last_os_error()));
@@ -231,6 +289,7 @@ impl TunSocket {
 
         ifr.ifr_name[..iface_name.len()].copy_from_slice(iface_name);
 
+        // Set the interface name.
         if unsafe { ioctl(fd, SIOCSIFNAME, &ifr) } < 0 {
             return Err(Error::IOCtl(io::Error::last_os_error()));
         }
@@ -240,7 +299,7 @@ impl TunSocket {
         Ok(new_name.to_owned())
     }
 
-    #[cfg(target_os = "freebsd")]
+    #[cfg(any(target_os = "freebsd", target_os = "netbsd"))]
     // Attempt to remove an interface by name
     fn remove(name: &str) -> Result<(), Error> {
         let fd = match unsafe { socket(AF_INET, SOCK_STREAM, IPPROTO_IP) } {

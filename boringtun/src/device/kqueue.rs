@@ -110,9 +110,6 @@ impl<H: Send + Sync> EventPoll<H> {
                 flags,
                 fflags: 0,
                 data: 0,
-                #[cfg(target_os = "netbsd")]
-                udata: 0,
-                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
                 #[cfg(target_os = "freebsd")]
                 ext: [0u64; 4],
@@ -138,9 +135,6 @@ impl<H: Send + Sync> EventPoll<H> {
                     .unwrap()
                     .checked_add(u64::from(period.subsec_nanos()))
                     .unwrap() as _,
-                #[cfg(target_os = "netbsd")]
-                udata: 0,
-                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
                 #[cfg(target_os = "freebsd")]
                 ext: [0u64; 4],
@@ -161,9 +155,6 @@ impl<H: Send + Sync> EventPoll<H> {
                 flags: EV_ENABLE,
                 fflags: 0,
                 data: 0,
-                #[cfg(target_os = "netbsd")]
-                udata: 0,
-                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
                 #[cfg(target_os = "freebsd")]
                 ext: [0u64; 4],
@@ -184,9 +175,6 @@ impl<H: Send + Sync> EventPoll<H> {
                 flags: EV_ENABLE | EV_DISPATCH,
                 fflags: 0,
                 data: 0,
-                #[cfg(target_os = "netbsd")]
-                udata: 0,
-                #[cfg(not(target_os = "netbsd"))]
                 udata: null_mut(),
                 #[cfg(target_os = "freebsd")]
                 ext: [0u64; 4],
@@ -209,21 +197,15 @@ impl<H: Send + Sync> EventPoll<H> {
             flags: 0,
             fflags: 0,
             data: 0,
-            #[cfg(target_os = "netbsd")]
-            udata: 0,
-            #[cfg(not(target_os = "netbsd"))]
             udata: null_mut(),
             #[cfg(target_os = "freebsd")]
             ext: [0u64; 4],
         };
 
-        if unsafe { kevent(self.kqueue, null(), 0, &mut event, 1, null()) } == -1 {
+        if unsafe { kevent(self.kqueue, null(), 0, &raw mut event, 1, null()) } == -1 {
             return WaitResult::Error(io::Error::last_os_error().to_string());
         }
 
-        #[cfg(target_os = "netbsd")]
-        let event_data = unsafe { (event.udata as *mut Event<H>).as_ref().unwrap() };
-        #[cfg(not(target_os = "netbsd"))]
         let event_data = unsafe { event.udata.cast::<Event<H>>().as_ref().unwrap() };
 
         let guard = EventGuard {
@@ -249,7 +231,9 @@ impl<H: Send + Sync> EventPoll<H> {
 
         let (trigger, index) = match ev.kind {
             EventKind::FD | EventKind::Signal => (ev.event.ident as RawFd, ev.event.ident),
-            EventKind::Timer | EventKind::Notifier => (-(events.len() as RawFd) - 1, events.len()), // Custom events get negative identifiers, hopefully we will never have more than 2^31 events of each type
+            // Custom events get negative identifiers, hopefully we will never have more than 2^31
+            // events of each type.
+            EventKind::Timer | EventKind::Notifier => (-(events.len() as RawFd) - 1, events.len()),
         };
 
         // Expand events vector if needed
@@ -262,26 +246,19 @@ impl<H: Send + Sync> EventPoll<H> {
         let mut ev = Box::new(ev);
         // The inner event points back to the wrapper
         ev.event.ident = trigger as _;
-        #[cfg(target_os = "netbsd")]
-        {
-            ev.event.udata = std::ptr::from_mut::<Event<H>>(ev.as_mut()) as intptr_t;
-        }
-        #[cfg(not(target_os = "netbsd"))]
-        {
-            ev.event.udata = std::ptr::from_mut::<Event<H>>(ev.as_mut()).cast();
-        }
+        ev.event.udata = std::ptr::from_mut::<Event<H>>(ev.as_mut()).cast();
 
         let mut kev = ev.event;
         kev.flags |= EV_ADD;
 
-        if unsafe { kevent(self.kqueue, &kev, 1, null_mut(), 0, null()) } == -1 {
+        if unsafe { kevent(self.kqueue, &raw const kev, 1, null_mut(), 0, null()) } == -1 {
             return Err(Error::EventQueue(io::Error::last_os_error()));
         }
 
         if let Some(mut event) = events[index].take() {
             // Properly remove any previous event first
             event.event.flags = EV_DELETE;
-            unsafe { kevent(self.kqueue, &event.event, 1, null_mut(), 0, null()) };
+            unsafe { kevent(self.kqueue, &raw const event.event, 1, null_mut(), 0, null()) };
         }
 
         if ev.kind == EventKind::Signal {
@@ -309,7 +286,7 @@ impl<H: Send + Sync> EventPoll<H> {
         let mut kev = event_data.event;
         kev.fflags = NOTE_TRIGGER;
 
-        unsafe { kevent(self.kqueue, &kev, 1, null_mut(), 0, null()) };
+        unsafe { kevent(self.kqueue, &raw const kev, 1, null_mut(), 0, null()) };
     }
 
     pub fn stop_notification(&self, notification_event: &EventRef) {
@@ -328,7 +305,7 @@ impl<H: Send + Sync> EventPoll<H> {
         kev.flags = EV_DISABLE;
         kev.fflags = 0;
 
-        unsafe { kevent(self.kqueue, &kev, 1, null_mut(), 0, null()) };
+        unsafe { kevent(self.kqueue, &raw const kev, 1, null_mut(), 0, null()) };
     }
 }
 
@@ -345,7 +322,7 @@ impl<H> EventPoll<H> {
             if let Some(mut event) = events[index].take() {
                 // Properly remove any previous event first
                 event.event.flags = EV_DELETE;
-                kevent(self.kqueue, &event.event, 1, null_mut(), 0, null());
+                kevent(self.kqueue, &raw const event.event, 1, null_mut(), 0, null());
             }
         }
     }
@@ -362,7 +339,7 @@ impl<H> Drop for EventGuard<'_, H> {
     fn drop(&mut self) {
         unsafe {
             // Re-enable the event once EventGuard goes out of scope
-            kevent(self.kqueue, &self.event.event, 1, null_mut(), 0, null());
+            kevent(self.kqueue, &raw const self.event.event, 1, null_mut(), 0, null());
         }
     }
 }

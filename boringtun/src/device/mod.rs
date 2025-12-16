@@ -31,7 +31,7 @@ pub mod tun;
 #[path = "tun_linux.rs"]
 pub mod tun;
 
-#[cfg(target_os = "freebsd")]
+#[cfg(any(target_os = "freebsd", target_os = "netbsd"))]
 #[path = "tun_bsd.rs"]
 pub mod tun;
 
@@ -328,7 +328,8 @@ impl Device {
     ) {
         if remove {
             // Completely remove a peer
-            return self.remove_peer(&pub_key);
+            self.remove_peer(&pub_key);
+            return;
         }
 
         // Update an existing peer
@@ -339,10 +340,10 @@ impl Device {
         );
 
         let next_index = self.next_index();
-        let device_key_pair = self
-            .key_pair
-            .as_ref()
-            .expect("Private key must be set first");
+        let Some(device_key_pair) = self.key_pair.as_ref() else {
+            tracing::error!("Private key must be set first");
+            return;
+        };
 
         let tunn = Tunn::new(
             device_key_pair.0.clone(),
@@ -372,7 +373,9 @@ impl Device {
 
         // Create a tunnel device
         let iface = Arc::new(TunSocket::new(name)?.set_non_blocking()?);
+        eprintln!("DEBUG");
         let mtu = iface.mtu()?;
+        eprintln!("DEBUG");
 
         #[cfg(not(target_os = "linux"))]
         let uapi_fd = -1;
@@ -413,12 +416,11 @@ impl Device {
         #[cfg(target_os = "macos")]
         {
             // Only for macOS write the actual socket name into WG_TUN_NAME_FILE
-            if let Ok(name_file) = std::env::var("WG_TUN_NAME_FILE") {
-                if name == "utun" {
+            if let Ok(name_file) = std::env::var("WG_TUN_NAME_FILE")
+                && name == "utun" {
                     std::fs::write(&name_file, device.iface.name().unwrap().as_bytes()).unwrap();
                     device.cleanup_paths.push(name_file);
                 }
-            }
         }
 
         Ok(device)
@@ -689,12 +691,11 @@ impl Device {
                     let addr = addr.as_socket().unwrap();
                     let ip_addr = addr.ip();
                     p.set_endpoint(addr);
-                    if d.config.use_connected_socket {
-                        if let Ok(sock) = p.connect_endpoint(d.listen_port, d.fwmark) {
+                    if d.config.use_connected_socket
+                        && let Ok(sock) = p.connect_endpoint(d.listen_port, d.fwmark) {
                             d.register_conn_handler(Arc::clone(peer), sock, ip_addr)
                                 .unwrap();
                         }
-                    }
 
                     iter -= 1;
                     if iter == 0 {
