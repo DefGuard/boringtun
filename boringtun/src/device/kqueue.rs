@@ -258,7 +258,16 @@ impl<H: Send + Sync> EventPoll<H> {
         if let Some(mut event) = events[index].take() {
             // Properly remove any previous event first
             event.event.flags = EV_DELETE;
-            unsafe { kevent(self.kqueue, &raw const event.event, 1, null_mut(), 0, null()) };
+            unsafe {
+                kevent(
+                    self.kqueue,
+                    &raw const event.event,
+                    1,
+                    null_mut(),
+                    0,
+                    null(),
+                )
+            };
         }
 
         if ev.kind == EventKind::Signal {
@@ -322,7 +331,14 @@ impl<H> EventPoll<H> {
             if let Some(mut event) = events[index].take() {
                 // Properly remove any previous event first
                 event.event.flags = EV_DELETE;
-                kevent(self.kqueue, &raw const event.event, 1, null_mut(), 0, null());
+                kevent(
+                    self.kqueue,
+                    &raw const event.event,
+                    1,
+                    null_mut(),
+                    0,
+                    null(),
+                );
             }
         }
     }
@@ -339,7 +355,14 @@ impl<H> Drop for EventGuard<'_, H> {
     fn drop(&mut self) {
         unsafe {
             // Re-enable the event once EventGuard goes out of scope
-            kevent(self.kqueue, &raw const self.event.event, 1, null_mut(), 0, null());
+            kevent(
+                self.kqueue,
+                &raw const self.event.event,
+                1,
+                null_mut(),
+                0,
+                null(),
+            );
         }
     }
 }

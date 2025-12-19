@@ -17,7 +17,7 @@ use std::{
 use aead::rand_core::OsRng;
 use base64::prelude::*;
 use hex::encode as encode_hex;
-use libc::{raise, SIGSEGV};
+use libc::{SIGSEGV, raise};
 use parking_lot::Mutex;
 use tracing;
 use tracing_subscriber::fmt;

@@ -3,9 +3,9 @@
 
 use std::{fs::File, os::unix::net::UnixDatagram, process::exit, str::FromStr};
 
-use clap::{value_parser, Arg, ArgAction, Command};
+use clap::{Arg, ArgAction, Command, value_parser};
 use daemonize::Daemonize;
-use defguard_boringtun::device::{drop_privileges::drop_privileges, DeviceConfig, DeviceHandle};
+use defguard_boringtun::device::{DeviceConfig, DeviceHandle, drop_privileges::drop_privileges};
 use tracing::Level;
 
 fn check_tun_name<'a>(v: &str) -> Result<String, &'a str> {
@@ -15,7 +15,7 @@ fn check_tun_name<'a>(v: &str) -> Result<String, &'a str> {
             Ok(v.into())
         } else {
             Err(
-                "Tunnel name must have the format 'utun[0-9]+', use 'utun' for automatic assignment"
+                "Tunnel name must have the format 'utun[0-9]+', use 'utun' for automatic assignment",
             )
         }
     }
@@ -168,11 +168,12 @@ fn main() {
     };
 
     if !matches.get_flag("disable-drop-privileges")
-        && let Err(e) = drop_privileges() {
-            tracing::error!(message = "Failed to drop privileges", error = ?e);
-            sock1.send(&[0]).unwrap();
-            exit(1);
-        }
+        && let Err(e) = drop_privileges()
+    {
+        tracing::error!(message = "Failed to drop privileges", error = ?e);
+        sock1.send(&[0]).unwrap();
+        exit(1);
+    }
 
     // Notify parent that tunnel initialization succeeded
     sock1.send(&[1]).unwrap();

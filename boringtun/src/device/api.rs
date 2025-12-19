@@ -16,7 +16,7 @@ use hex::encode as encode_hex;
 use libc::*;
 
 use super::{
-    dev_lock::LockReadGuard, drop_privileges::get_saved_ids, AllowedIP, Device, Error, SocketAddr,
+    AllowedIP, Device, Error, SocketAddr, dev_lock::LockReadGuard, drop_privileges::get_saved_ids,
 };
 use crate::{device::Action, serialization::KeyBytes, x25519};
 
@@ -258,7 +258,7 @@ fn api_set(reader: &mut BufReader<&UnixStream>, d: &mut LockReadGuard<Device>) -
                                 reader,
                                 device,
                                 x25519::PublicKey::from(key_bytes.0),
-                            )
+                            );
                         }
                         Err(_) => return EINVAL,
                     },

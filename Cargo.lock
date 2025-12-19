@@ -497,7 +497,7 @@ dependencies = [
 
 [[package]]
 name = "defguard_boringtun"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "aead",
  "base64",
@@ -525,7 +525,7 @@ dependencies = [
 
 [[package]]
 name = "defguard_boringtun_cli"
-version = "0.6.1"
+version = "0.6.2"
 dependencies = [
  "clap",
  "daemonize",

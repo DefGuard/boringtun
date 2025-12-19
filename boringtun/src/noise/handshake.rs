@@ -7,18 +7,18 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use aead::{rand_core::OsRng, Aead, Payload};
+use aead::{Aead, Payload, rand_core::OsRng};
 use blake2::{
-    digest::{FixedOutput, KeyInit},
     Blake2s256, Blake2sMac, Digest,
+    digest::{FixedOutput, KeyInit},
 };
 use chacha20poly1305::XChaCha20Poly1305;
 #[cfg(feature = "mock-instant")]
 use mock_instant::global::Instant;
-use ring::aead::{Aad, LessSafeKey, Nonce, UnboundKey, CHACHA20_POLY1305};
+use ring::aead::{Aad, CHACHA20_POLY1305, LessSafeKey, Nonce, UnboundKey};
 
 use super::{
-    errors::WireGuardError, session::Session, HandshakeInit, HandshakeResponse, PacketCookieReply,
+    HandshakeInit, HandshakeResponse, PacketCookieReply, errors::WireGuardError, session::Session,
 };
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;

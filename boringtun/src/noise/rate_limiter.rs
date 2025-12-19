@@ -4,9 +4,9 @@ use std::{
 };
 
 use aead::{
+    AeadInPlace, KeyInit,
     generic_array::GenericArray,
     rand_core::{OsRng, RngCore},
-    AeadInPlace, KeyInit,
 };
 use chacha20poly1305::{Key, XChaCha20Poly1305};
 #[cfg(feature = "mock-instant")]
@@ -14,10 +14,10 @@ use mock_instant::global::Instant;
 use parking_lot::Mutex;
 
 use super::{
-    handshake::{
-        b2s_hash, b2s_keyed_mac_16, b2s_keyed_mac_16_2, b2s_mac_24, LABEL_COOKIE, LABEL_MAC1,
-    },
     HandshakeInit, HandshakeResponse, Packet, Tunn, TunnResult, WireGuardError,
+    handshake::{
+        LABEL_COOKIE, LABEL_MAC1, b2s_hash, b2s_keyed_mac_16, b2s_keyed_mac_16_2, b2s_mac_24,
+    },
 };
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;

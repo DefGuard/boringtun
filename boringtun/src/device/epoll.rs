@@ -341,7 +341,7 @@ impl<H> EventPoll<H> {
         let mut events = self.events.lock();
         assert!(index >= 0);
         if events[index as usize].take().is_some() {
-            epoll_ctl(self.epoll, EPOLL_CTL_DEL, index, null_mut());
+            unsafe { epoll_ctl(self.epoll, EPOLL_CTL_DEL, index, null_mut()) };
         }
     }
 }

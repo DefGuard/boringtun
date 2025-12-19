@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use super::{errors::WireGuardError, Tunn, TunnResult};
+use super::{Tunn, TunnResult, errors::WireGuardError};
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;
 
@@ -272,7 +272,8 @@ impl Tunn {
             // packet after from that peer for (KEEPALIVE + REKEY_TIMEOUT) ms,
             // we initiate a new handshake.
             if data_packet_sent > aut_packet_received
-                && now.checked_sub(aut_packet_received).unwrap() >= KEEPALIVE_TIMEOUT + REKEY_TIMEOUT
+                && now.checked_sub(aut_packet_received).unwrap()
+                    >= KEEPALIVE_TIMEOUT + REKEY_TIMEOUT
                 && mem::replace(&mut self.timers.want_handshake, false)
             {
                 tracing::warn!("HANDSHAKE(KEEPALIVE + REKEY_TIMEOUT)");
@@ -292,7 +293,9 @@ impl Tunn {
 
                 // Persistent KEEPALIVE
                 if persistent_keepalive > 0
-                    && (now.checked_sub(self.timers[TimePersistentKeepalive]).unwrap()
+                    && (now
+                        .checked_sub(self.timers[TimePersistentKeepalive])
+                        .unwrap()
                         >= Duration::from_secs(persistent_keepalive.into()))
                 {
                     tracing::debug!("KEEPALIVE(PERSISTENT_KEEPALIVE)");
@@ -319,7 +322,11 @@ impl Tunn {
             let duration_since_tun_start = Instant::now().duration_since(self.timers.time_started);
             let duration_since_session_established = self.timers[TimeSessionEstablished];
 
-            Some(duration_since_tun_start.checked_sub(duration_since_session_established).unwrap())
+            Some(
+                duration_since_tun_start
+                    .checked_sub(duration_since_session_established)
+                    .unwrap(),
+            )
         } else {
             None
         }
@@ -328,10 +335,6 @@ impl Tunn {
     pub fn persistent_keepalive(&self) -> Option<u16> {
         let keepalive = self.timers.persistent_keepalive;
 
-        if keepalive > 0 {
-            Some(keepalive)
-        } else {
-            None
-        }
+        if keepalive > 0 { Some(keepalive) } else { None }
     }
 }

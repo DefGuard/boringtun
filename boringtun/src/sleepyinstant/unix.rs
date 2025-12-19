@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use nix::{
     sys::time::TimeSpec,
-    time::{clock_gettime, ClockId},
+    time::{ClockId, clock_gettime},
 };
 
 #[cfg(any(

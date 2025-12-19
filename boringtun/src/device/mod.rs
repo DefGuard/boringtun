@@ -42,8 +42,8 @@ use std::{
     net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr, SocketAddrV4, SocketAddrV6},
     os::unix::io::AsRawFd,
     sync::{
-        atomic::{AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicUsize, Ordering},
     },
     thread::{self, JoinHandle},
 };
@@ -58,8 +58,8 @@ use tun::TunSocket;
 
 use crate::{
     noise::{
-        errors::WireGuardError, handshake::parse_handshake_anon, rate_limiter::RateLimiter, Packet,
-        Tunn, TunnResult,
+        Packet, Tunn, TunnResult, errors::WireGuardError, handshake::parse_handshake_anon,
+        rate_limiter::RateLimiter,
     },
     x25519,
 };
@@ -417,10 +417,11 @@ impl Device {
         {
             // Only for macOS write the actual socket name into WG_TUN_NAME_FILE
             if let Ok(name_file) = std::env::var("WG_TUN_NAME_FILE")
-                && name == "utun" {
-                    std::fs::write(&name_file, device.iface.name().unwrap().as_bytes()).unwrap();
-                    device.cleanup_paths.push(name_file);
-                }
+                && name == "utun"
+            {
+                std::fs::write(&name_file, device.iface.name().unwrap().as_bytes()).unwrap();
+                device.cleanup_paths.push(name_file);
+            }
         }
 
         Ok(device)
@@ -692,10 +693,11 @@ impl Device {
                     let ip_addr = addr.ip();
                     p.set_endpoint(addr);
                     if d.config.use_connected_socket
-                        && let Ok(sock) = p.connect_endpoint(d.listen_port, d.fwmark) {
-                            d.register_conn_handler(Arc::clone(peer), sock, ip_addr)
-                                .unwrap();
-                        }
+                        && let Ok(sock) = p.connect_endpoint(d.listen_port, d.fwmark)
+                    {
+                        d.register_conn_handler(Arc::clone(peer), sock, ip_addr)
+                            .unwrap();
+                    }
 
                     iter -= 1;
                     if iter == 0 {
