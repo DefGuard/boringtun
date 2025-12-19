@@ -105,14 +105,14 @@ impl TunSocket {
         let msg_hdr = msghdr {
             msg_name: null_mut(),
             msg_namelen: 0,
-            msg_iov: &mut iov[0],
+            msg_iov: &raw mut iov[0],
             msg_iovlen: iov.len() as _,
             msg_control: null_mut(),
             msg_controllen: 0,
             msg_flags: 0,
         };
 
-        match unsafe { sendmsg(self.fd, &msg_hdr, 0) } {
+        match unsafe { sendmsg(self.fd, &raw const msg_hdr, 0) } {
             -1 => 0,
             n => n as usize,
         }
@@ -175,7 +175,7 @@ impl TunSocket {
                 SYSPROTO_CONTROL,
                 UTUN_OPT_IFNAME,
                 tunnel_name.as_mut_ptr().cast(),
-                &mut tunnel_name_len,
+                &raw mut tunnel_name_len,
             )
         } < 0
             || tunnel_name_len == 0
@@ -238,14 +238,14 @@ impl TunSocket {
         let mut msg_hdr = msghdr {
             msg_name: null_mut(),
             msg_namelen: 0,
-            msg_iov: &mut iov[0],
+            msg_iov: &raw mut iov[0],
             msg_iovlen: iov.len() as _,
             msg_control: null_mut(),
             msg_controllen: 0,
             msg_flags: 0,
         };
 
-        match unsafe { recvmsg(self.fd, &mut msg_hdr, 0) } {
+        match unsafe { recvmsg(self.fd, &raw mut msg_hdr, 0) } {
             -1 => Err(Error::IfaceRead(io::Error::last_os_error())),
             0..=4 => Ok(&mut dst[..0]),
             n => Ok(&mut dst[..(n - 4) as usize]),

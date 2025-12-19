@@ -380,12 +380,12 @@ impl NoiseParams {
         static_public: x25519::PublicKey,
         peer_static_public: x25519::PublicKey,
         preshared_key: Option<[u8; 32]>,
-    ) -> NoiseParams {
+    ) -> Self {
         let static_shared = static_private.diffie_hellman(&peer_static_public);
 
         let initial_sending_mac_key = b2s_hash(LABEL_MAC1, peer_static_public.as_bytes());
 
-        NoiseParams {
+        Self {
             static_public,
             static_private,
             peer_static_public,
@@ -608,7 +608,7 @@ impl Handshake {
         // temp = HMAC(responder.chaining_key, preshared_key)
         let temp = b2s_hmac(
             &chaining_key,
-            &self.params.preshared_key.unwrap_or([0u8; 32])[..],
+            &self.params.preshared_key.unwrap_or_default(),
         );
         // responder.chaining_key = HMAC(temp, 0x1)
         chaining_key = b2s_hmac(&temp, &[0x01]);
@@ -843,7 +843,7 @@ impl Handshake {
         // temp = HMAC(responder.chaining_key, preshared_key)
         let temp = b2s_hmac(
             &chaining_key,
-            &self.params.preshared_key.unwrap_or([0u8; 32])[..],
+            &self.params.preshared_key.unwrap_or_default(),
         );
         // responder.chaining_key = HMAC(temp, 0x1)
         chaining_key = b2s_hmac(&temp, &[0x01]);

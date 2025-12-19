@@ -28,6 +28,15 @@ impl<'a, D> FromIterator<(&'a AllowedIP, D)> for AllowedIps<D> {
     }
 }
 
+impl<'a, D> IntoIterator for &'a AllowedIps<D> {
+    type Item = (&'a D, IpAddr, u8);
+    type IntoIter = Iter<'a, D>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
 impl<D> AllowedIps<D> {
     #[must_use]
     pub fn new() -> Self {
