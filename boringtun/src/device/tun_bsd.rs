@@ -58,6 +58,7 @@ const SIOCGIFMTU: u64 = 0xc090_697e;
 const TUNSIFHEAD: u64 = 0x8004_7460;
 #[cfg(target_os = "netbsd")]
 const TUNSIFHEAD: u64 = 0x8004_7442;
+#[cfg(target_os = "netbsd")]
 const TUNSLMODE: u64 = 0x8004_7457;
 #[cfg(target_os = "freebsd")]
 const SIOCIFDESTROY: u64 = 0x8020_6979;
@@ -67,7 +68,7 @@ const SIOCIFDESTROY: u64 = 0x8090_6979;
 const SIOCSIFNAME: u64 = 0x8020_6928;
 
 #[cfg(target_os = "freebsd")]
-extern "C" {
+unsafe extern "C" {
     fn fdevname(fd: RawFd) -> *mut c_char;
 }
 
@@ -75,18 +76,6 @@ extern "C" {
 fn devname(fd: RawFd) -> String {
     let c_str = unsafe {
         let name = fdevname(fd);
-        std::ffi::CStr::from_ptr(name)
-    };
-    c_str.to_string_lossy().into_owned()
-}
-
-/// NetBSD doesn't have fdevname().
-#[cfg(target_os = "netbsd")]
-fn devname(fd: RawFd) -> String {
-    let c_str = unsafe {
-        let buf = std::mem::zeroed();
-        fstat(fd, buf);
-        let name = libc::devname((*buf).st_rdev, S_IFCHR);
         std::ffi::CStr::from_ptr(name)
     };
     c_str.to_string_lossy().into_owned()
