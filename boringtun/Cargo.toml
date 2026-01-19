@@ -37,7 +37,7 @@ socket2 = { version = "0.6", features = ["all"], optional = true }
 thiserror = { version = "2", optional = true }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
-uniffi = { version = "0.30", features = ["cli"] }
+uniffi = { version = "0.31", features = ["cli"] }
 untrusted = "0.9"
 x25519-dalek = { version = "2", features = [
     "reusable_secrets",
@@ -51,7 +51,7 @@ nix = { version = "0.30", default-features = false, features = [
 ] }
 
 [build-dependencies]
-uniffi = { version = "0.30", features = ["build"] }
+uniffi = { version = "0.31", features = ["build"] }
 
 [dev-dependencies]
 criterion = { version = "0.8", features = ["html_reports"] }
