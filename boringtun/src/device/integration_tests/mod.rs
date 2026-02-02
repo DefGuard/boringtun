@@ -5,20 +5,26 @@
 // Those tests require docker and sudo privileges to run
 #[cfg(all(test, not(target_os = "macos")))]
 mod tests {
-    use crate::device::{DeviceConfig, DeviceHandle};
-    use crate::x25519::{PublicKey, StaticSecret};
+    use crate::{
+        device::{DeviceConfig, DeviceHandle},
+        x25519::{PublicKey, StaticSecret},
+    };
     use base64::encode as base64encode;
     use hex::encode;
     use rand_core::OsRng;
     use ring::rand::{SecureRandom, SystemRandom};
-    use std::fmt::Write as _;
-    use std::io::{BufRead, BufReader, Read, Write};
-    use std::net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr};
-    use std::os::unix::net::UnixStream;
-    use std::process::Command;
-    use std::sync::Arc;
-    use std::sync::atomic::{AtomicUsize, Ordering};
-    use std::thread;
+    use std::{
+        fmt::Write as _,
+        io::{BufRead, BufReader, Read, Write},
+        net::{IpAddr, Ipv4Addr, Ipv6Addr, SocketAddr},
+        os::unix::net::UnixStream,
+        process::Command,
+        sync::{
+            Arc,
+            sync::atomic::{AtomicUsize, Ordering},
+        },
+        thread,
+    };
 
     static NEXT_IFACE_IDX: AtomicUsize = AtomicUsize::new(100); // utun 100+ should be vacant during testing on CI
     static NEXT_PORT: AtomicUsize = AtomicUsize::new(61111); // Use ports starting with 61111, hoping we don't run into a taken port 🤷

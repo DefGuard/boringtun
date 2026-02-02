@@ -511,7 +511,7 @@ impl Device {
         // Then on all currently connected sockets
         for peer in self.peers.values() {
             if let Some(ref sock) = peer.lock().endpoint().conn {
-                sock.set_mark(mark)?
+                sock.set_mark(mark)?;
             }
         }
 

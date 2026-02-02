@@ -1,14 +1,12 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use super::Error;
+use std::{io, ops::Deref, os::unix::io::RawFd, ptr::null_mut, time::Duration};
+
 use libc::*;
 use parking_lot::Mutex;
-use std::io;
-use std::ops::Deref;
-use std::os::unix::io::RawFd;
-use std::ptr::null_mut;
-use std::time::Duration;
+
+use super::Error;
 
 /// A return type for the EventPoll::wait() function
 pub enum WaitResult<'a, H> {
@@ -85,7 +83,7 @@ impl<H: Sync + Send> EventPoll<H> {
         let flags = EPOLLIN | EPOLLONESHOT;
         let ev = Event {
             event: epoll_event {
-                events: flags as _,
+                events: flags.cast_unsigned(),
                 u64: 0,
             },
             fd: trigger,
@@ -106,7 +104,7 @@ impl<H: Sync + Send> EventPoll<H> {
         let flags = EPOLLOUT | EPOLLET | EPOLLONESHOT;
         let ev = Event {
             event: epoll_event {
-                events: flags as _,
+                events: flags.cast_unsigned(),
                 u64: 0,
             },
             fd: trigger,
@@ -142,7 +140,7 @@ impl<H: Sync + Send> EventPoll<H> {
             it_interval: ts,
         };
 
-        if unsafe { timerfd_settime(tfd, 0, &spec, std::ptr::null_mut()) } == -1 {
+        if unsafe { timerfd_settime(tfd, 0, &raw const spec, std::ptr::null_mut()) } == -1 {
             unsafe { close(tfd) };
             return Err(Error::Timer(io::Error::last_os_error()));
         }
@@ -194,10 +192,10 @@ impl<H: Sync + Send> EventPoll<H> {
     pub fn new_signal_event(&self, signal: c_int, handler: H) -> Result<EventRef, Error> {
         let sfd = match unsafe {
             let mut sigset = std::mem::zeroed();
-            sigemptyset(&mut sigset);
-            sigaddset(&mut sigset, signal);
-            sigprocmask(SIG_BLOCK, &sigset, null_mut());
-            signalfd(-1, &sigset, SFD_NONBLOCK)
+            sigemptyset(&raw mut sigset);
+            sigaddset(&raw mut sigset, signal);
+            sigprocmask(SIG_BLOCK, &raw const sigset, null_mut());
+            signalfd(-1, &raw const sigset, SFD_NONBLOCK)
         } {
             -1 => return Err(Error::EventQueue(io::Error::last_os_error())),
             sfd => sfd,
@@ -223,7 +221,7 @@ impl<H: Sync + Send> EventPoll<H> {
     /// handler.
     pub fn wait(&self) -> WaitResult<'_, H> {
         let mut event = epoll_event { events: 0, u64: 0 };
-        match unsafe { epoll_wait(self.epoll, &mut event, 1, -1) } {
+        match unsafe { epoll_wait(self.epoll, &raw mut event, 1, -1) } {
             -1 => return WaitResult::Error(io::Error::last_os_error().to_string()),
             1 => {}
             _ => return WaitResult::Error("unexpected number of events returned".to_string()),
@@ -260,7 +258,7 @@ impl<H: Sync + Send> EventPoll<H> {
         // Now add the pointer to the events vector, this is a place from which we can drop the event
         self.insert_at(trigger as _, ev);
         // Add the event to epoll
-        if unsafe { epoll_ctl(self.epoll, EPOLL_CTL_ADD, trigger, &mut event_desc) } == -1 {
+        if unsafe { epoll_ctl(self.epoll, EPOLL_CTL_ADD, trigger, &raw mut event_desc) } == -1 {
             return Err(Error::EventQueue(io::Error::last_os_error()));
         }
 
@@ -301,7 +299,7 @@ impl<H: Sync + Send> EventPoll<H> {
         unsafe {
             write(
                 notification_event.trigger,
-                &(std::u64::MAX - 1).to_ne_bytes()[0] as *const u8 as _,
+                &(u64::MAX - 1).to_ne_bytes()[0] as *const u8 as _,
                 8,
             )
         };
@@ -322,7 +320,7 @@ impl<H: Sync + Send> EventPoll<H> {
         unsafe {
             read(
                 notification_event.trigger,
-                buf.as_mut_ptr() as _,
+                buf.as_mut_ptr().cast(),
                 buf.len() as _,
             )
         };
@@ -346,20 +344,20 @@ impl<H> EventPoll<H> {
     }
 }
 
-impl<'a, H> Deref for EventGuard<'a, H> {
+impl<H> Deref for EventGuard<'_, H> {
     type Target = H;
     fn deref(&self) -> &H {
         &self.event.handler
     }
 }
 
-impl<'a, H> Drop for EventGuard<'a, H> {
+impl<H> Drop for EventGuard<'_, H> {
     fn drop(&mut self) {
         if self.event.needs_read {
             // Must read from the event to reset it before we enable it
             let mut buf: [std::mem::MaybeUninit<u8>; 256] =
                 unsafe { std::mem::MaybeUninit::uninit().assume_init() };
-            while unsafe { read(self.event.fd, buf.as_mut_ptr() as _, buf.len() as _) } != -1 {}
+            while unsafe { read(self.event.fd, buf.as_mut_ptr().cast(), buf.len() as _) } != -1 {}
         }
 
         unsafe {
@@ -367,13 +365,13 @@ impl<'a, H> Drop for EventGuard<'a, H> {
                 self.epoll,
                 EPOLL_CTL_MOD,
                 self.event.fd,
-                &mut self.event.event,
+                &raw mut self.event.event,
             );
         }
     }
 }
 
-impl<'a, H> EventGuard<'a, H> {
+impl<H> EventGuard<'_, H> {
     /// Get a mutable reference to the stored value
     #[allow(dead_code)]
     pub fn get_mut(&mut self) -> &mut H {
@@ -386,6 +384,7 @@ impl<'a, H> EventGuard<'a, H> {
         std::mem::forget(self); // Don't call the regular drop that would enable the event
     }
 
+    #[must_use]
     pub fn fd(&self) -> i32 {
         self.event.fd
     }
@@ -397,18 +396,18 @@ impl<'a, H> EventGuard<'a, H> {
         } else {
             EPOLLIN | EPOLLONESHOT
         };
-        self.event.event.events = flags as _;
+        self.event.event.events = flags.cast_unsigned();
     }
 }
 
 pub fn block_signal(signal: c_int) -> Result<sigset_t, String> {
     unsafe {
         let mut sigset = std::mem::zeroed();
-        sigemptyset(&mut sigset);
-        if sigaddset(&mut sigset, signal) == -1 {
+        sigemptyset(&raw mut sigset);
+        if sigaddset(&raw mut sigset, signal) == -1 {
             return Err(io::Error::last_os_error().to_string());
         }
-        if sigprocmask(SIG_BLOCK, &sigset, null_mut()) == -1 {
+        if sigprocmask(SIG_BLOCK, &raw const sigset, null_mut()) == -1 {
             return Err(io::Error::last_os_error().to_string());
         }
         Ok(sigset)

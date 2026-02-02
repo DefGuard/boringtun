@@ -76,7 +76,7 @@ impl TunSocket {
             });
         }
 
-        let fd = match unsafe { open(b"/dev/net/tun\0".as_ptr() as _, O_RDWR) } {
+        let fd = match unsafe { open(c"/dev/net/tun".as_ptr(), O_RDWR) } {
             -1 => return Err(Error::Socket(io::Error::last_os_error())),
             fd => fd,
         };
@@ -146,18 +146,20 @@ impl TunSocket {
         Ok(unsafe { ifr.ifr_ifru.ifru_mtu } as _)
     }
 
+    #[must_use]
     pub fn write4(&self, src: &[u8]) -> usize {
         self.write(src)
     }
 
+    #[must_use]
     pub fn write6(&self, src: &[u8]) -> usize {
         self.write(src)
     }
 
     pub fn read<'a>(&self, dst: &'a mut [u8]) -> Result<&'a mut [u8], Error> {
-        match unsafe { read(self.fd, dst.as_mut_ptr() as _, dst.len()) } {
+        match unsafe { read(self.fd, dst.as_mut_ptr().cast(), dst.len()) } {
             -1 => Err(Error::IfaceRead(io::Error::last_os_error())),
-            n => Ok(&mut dst[..n as usize]),
+            n => Ok(&mut dst[..n.cast_unsigned()]),
         }
     }
 }
