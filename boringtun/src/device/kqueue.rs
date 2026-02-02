@@ -10,7 +10,6 @@ use std::{
 };
 
 use libc::*;
-
 use parking_lot::Mutex;
 
 use super::Error;

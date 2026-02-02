@@ -43,7 +43,6 @@ impl<'a> From<TunnResult<'a>> for TunnelResult {
 
 #[uniffi::export]
 impl Tunnel {
-    #[must_use]
     #[uniffi::constructor]
     pub fn new(
         private_key: String,

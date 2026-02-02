@@ -1,14 +1,12 @@
 // Copyright (c) 2019 Cloudflare, Inc. All rights reserved.
 // SPDX-License-Identifier: BSD-3-Clause
 
-use crate::device::peer::AllowedIP;
+use std::{collections::VecDeque, iter::FromIterator, net::IpAddr};
 
 use ip_network::IpNetwork;
 use ip_network_table::IpNetworkTable;
 
-use std::collections::VecDeque;
-use std::iter::FromIterator;
-use std::net::IpAddr;
+use crate::device::peer::AllowedIP;
 
 /// A trie of IP/cidr addresses
 #[derive(Default)]

@@ -185,7 +185,7 @@ impl TunSocket {
         // Open a new tunnel
         // TODO: as in OpenVPN, try to open /dev/tunN, where N = 0..255;
         let devpath = format!("/dev/{name}");
-        let fd = match unsafe { open(devpath.as_bytes().as_ptr() as _, O_RDWR) } {
+        let fd = match unsafe { open(devpath.as_bytes().as_ptr().cast(), O_RDWR) } {
             -1 => return Err(Error::Socket(io::Error::last_os_error())),
             fd => fd,
         };
@@ -218,7 +218,7 @@ impl TunSocket {
         }
 
         // Open a new tunnel
-        let fd = match unsafe { open(b"/dev/tun\0".as_ptr() as _, O_RDWR) } {
+        let fd = match unsafe { open(c"/dev/tun".as_ptr(), O_RDWR) } {
             -1 => return Err(Error::Socket(io::Error::last_os_error())),
             fd => fd,
         };
@@ -260,7 +260,7 @@ impl TunSocket {
     fn set_name(old_name: &str, new_name: &str) -> Result<String, Error> {
         let fd = match unsafe { socket(AF_INET, SOCK_STREAM, IPPROTO_IP) } {
             -1 => return Err(Error::Socket(io::Error::last_os_error())),
-            fd @ _ => fd,
+            fd => fd,
         };
 
         let wanted_name = std::ffi::CString::new(new_name).unwrap();
@@ -268,7 +268,7 @@ impl TunSocket {
         let mut ifr = ifreq {
             ifr_name: [0; IF_NAMESIZE],
             ifr_ifru: IfrIfru {
-                ifru_data: wanted_name.as_ptr() as _,
+                ifru_data: wanted_name.as_ptr().cast_mut(),
             },
         };
 
@@ -293,7 +293,7 @@ impl TunSocket {
     fn remove(name: &str) -> Result<(), Error> {
         let fd = match unsafe { socket(AF_INET, SOCK_STREAM, IPPROTO_IP) } {
             -1 => return Err(Error::Socket(io::Error::last_os_error())),
-            fd @ _ => fd,
+            fd => fd,
         };
 
         let iface_name: &[u8] = name.as_ref();
@@ -356,7 +356,7 @@ impl TunSocket {
     }
 
     fn write(&self, src: &[u8], af: u8) -> usize {
-        let mut hdr = [0u8, 0u8, 0u8, af as u8];
+        let mut hdr = [0u8, 0u8, 0u8, af];
         let iov = [
             iovec {
                 iov_base: hdr.as_mut_ptr().cast(),
@@ -370,14 +370,16 @@ impl TunSocket {
 
         match unsafe { writev(self.fd, iov.as_ptr(), 2) } {
             -1 => 0,
-            n => n as usize,
+            n => n.cast_unsigned(),
         }
     }
 
+    #[must_use]
     pub fn write4(&self, src: &[u8]) -> usize {
         self.write(src, AF_INET as u8)
     }
 
+    #[must_use]
     pub fn write6(&self, src: &[u8]) -> usize {
         self.write(src, AF_INET6 as u8)
     }
@@ -399,7 +401,7 @@ impl TunSocket {
         match unsafe { readv(self.fd, iov.as_mut_ptr(), 2) } {
             -1 => Err(Error::IfaceRead(io::Error::last_os_error())),
             0..=4 => Ok(&mut dst[..0]),
-            n => Ok(&mut dst[..(n - 4) as usize]),
+            n => Ok(&mut dst[..(n - 4).cast_unsigned()]),
         }
     }
 }

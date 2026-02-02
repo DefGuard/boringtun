@@ -114,7 +114,7 @@ impl TunSocket {
 
         match unsafe { sendmsg(self.fd, &raw const msg_hdr, 0) } {
             -1 => 0,
-            n => n as usize,
+            n => n.cast_unsigned(),
         }
     }
 
@@ -248,7 +248,7 @@ impl TunSocket {
         match unsafe { recvmsg(self.fd, &raw mut msg_hdr, 0) } {
             -1 => Err(Error::IfaceRead(io::Error::last_os_error())),
             0..=4 => Ok(&mut dst[..0]),
-            n => Ok(&mut dst[..(n - 4) as usize]),
+            n => Ok(&mut dst[..(n - 4).cast_unsigned()]),
         }
     }
 }
