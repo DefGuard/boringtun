@@ -51,7 +51,7 @@ impl Instant {
         if tv_sec < 0 {
             None
         } else {
-            Some(Duration::new(tv_sec.cast_unsigned(), tv_nsec as _))
+            Some(Duration::new(tv_sec as _, tv_nsec as _))
         }
     }
 
