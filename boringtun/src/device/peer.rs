@@ -93,7 +93,7 @@ impl Peer {
         }
     }
 
-    pub fn set_endpoint(&self, addr: SocketAddr) {
+    pub fn set_endpoint(&self, addr: SocketAddr) -> bool {
         let mut endpoint = self.endpoint.write();
         if endpoint.addr != Some(addr) {
             // We only need to update the endpoint if it differs from the current one
@@ -102,6 +102,9 @@ impl Peer {
             }
 
             endpoint.addr = Some(addr);
+            true
+        } else {
+            false
         }
     }
 

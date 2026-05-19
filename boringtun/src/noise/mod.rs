@@ -69,7 +69,7 @@ pub struct Tunn {
     /// Index of most recently used session
     current: usize,
     /// Queue to store blocked packets
-    packet_queue: VecDeque<Vec<u8>>,
+    packet_queue: VecDeque<Box<[u8]>>,
     /// Keeps tabs on the expiring timers
     timers: timers::Timers,
     pub(crate) tx_bytes: usize,
@@ -222,7 +222,7 @@ impl Tunn {
             tx_bytes: Default::default(),
             rx_bytes: Default::default(),
 
-            packet_queue: VecDeque::new(),
+            packet_queue: VecDeque::with_capacity(MAX_QUEUE_DEPTH),
             timers: Timers::new(persistent_keepalive, rate_limiter.is_none()),
 
             rate_limiter: rate_limiter.unwrap_or_else(|| {
@@ -532,19 +532,20 @@ impl Tunn {
     fn queue_packet(&mut self, packet: &[u8]) {
         if self.packet_queue.len() < MAX_QUEUE_DEPTH {
             // Drop if too many are already in queue
-            self.packet_queue.push_back(packet.to_vec());
+            self.packet_queue
+                .push_back(packet.to_vec().into_boxed_slice());
         }
     }
 
     /// Push packet to the front of the queue
-    fn requeue_packet(&mut self, packet: Vec<u8>) {
+    fn requeue_packet(&mut self, packet: Box<[u8]>) {
         if self.packet_queue.len() < MAX_QUEUE_DEPTH {
             // Drop if too many are already in queue
             self.packet_queue.push_front(packet);
         }
     }
 
-    fn dequeue_packet(&mut self) -> Option<Vec<u8>> {
+    fn dequeue_packet(&mut self) -> Option<Box<[u8]>> {
         self.packet_queue.pop_front()
     }
 
