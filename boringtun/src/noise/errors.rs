@@ -9,7 +9,7 @@ pub enum WireGuardError {
     WrongPacketType,
     WrongIndex,
     WrongKey,
-    InvalidTai64nTimestamp,
+    // InvalidTai64nTimestamp,
     WrongTai64nTimestamp,
     InvalidMac,
     InvalidAeadTag,

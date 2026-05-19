@@ -7,12 +7,13 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use aead::{Aead, Payload, rand_core::OsRng};
+use aead::{AeadInPlace, rand_core::OsRng};
 use blake2::{
     Blake2s256, Blake2sMac, Digest,
     digest::{FixedOutput, KeyInit},
 };
 use chacha20poly1305::XChaCha20Poly1305;
+use chacha20poly1305::{Tag, XNonce};
 #[cfg(feature = "mock-instant")]
 use mock_instant::global::Instant;
 use ring::aead::{Aad, CHACHA20_POLY1305, LessSafeKey, Nonce, UnboundKey};
@@ -22,7 +23,7 @@ use super::{
 };
 #[cfg(not(feature = "mock-instant"))]
 use crate::sleepyinstant::Instant;
-use crate::x25519;
+use crate::{noise::rate_limiter::COOKIE_SIZE, x25519};
 
 pub(crate) const LABEL_MAC1: &[u8; 8] = b"mac1----";
 pub(crate) const LABEL_COOKIE: &[u8; 8] = b"cookie--";
@@ -49,11 +50,12 @@ pub(crate) fn b2s_hash(data1: &[u8], data2: &[u8]) -> [u8; 32] {
     hash.finalize().into()
 }
 
+type HmacBlake2s = hmac::SimpleHmac<Blake2s256>;
+
 #[inline]
 /// RFC 2401 HMAC+Blake2s, not to be confused with *keyed* Blake2s
 pub(crate) fn b2s_hmac(key: &[u8], data1: &[u8]) -> [u8; 32] {
     use blake2::digest::Update;
-    type HmacBlake2s = hmac::SimpleHmac<Blake2s256>;
     let mut hmac = HmacBlake2s::new_from_slice(key).unwrap();
     hmac.update(data1);
     hmac.finalize_fixed().into()
@@ -63,11 +65,32 @@ pub(crate) fn b2s_hmac(key: &[u8], data1: &[u8]) -> [u8; 32] {
 /// Like b2s_hmac, but chain data1 and data2 together
 pub(crate) fn b2s_hmac2(key: &[u8], data1: &[u8], data2: &[u8]) -> [u8; 32] {
     use blake2::digest::Update;
-    type HmacBlake2s = hmac::SimpleHmac<Blake2s256>;
     let mut hmac = HmacBlake2s::new_from_slice(key).unwrap();
     hmac.update(data1);
     hmac.update(data2);
     hmac.finalize_fixed().into()
+}
+
+#[inline]
+fn b2s_kdf1(key: &[u8], input: &[u8]) -> [u8; 32] {
+    b2s_hmac(&b2s_hmac(key, input), &[0x01])
+}
+
+#[inline]
+fn b2s_kdf2(key: &[u8], input: &[u8]) -> ([u8; 32], [u8; 32]) {
+    let temp = b2s_hmac(key, input);
+    let out1 = b2s_hmac(&temp, &[0x01]);
+    let out2 = b2s_hmac2(&temp, &out1, &[0x02]);
+    (out1, out2)
+}
+
+#[inline]
+fn b2s_kdf3(key: &[u8], input: &[u8]) -> ([u8; 32], [u8; 32], [u8; 32]) {
+    let temp = b2s_hmac(key, input);
+    let out1 = b2s_hmac(&temp, &[0x01]);
+    let out2 = b2s_hmac2(&temp, &out1, &[0x02]);
+    let out3 = b2s_hmac2(&temp, &out2, &[0x03]);
+    (out1, out2, out3)
 }
 
 #[inline]
@@ -135,7 +158,11 @@ fn aead_chacha20_open(
     let mut nonce: [u8; 12] = [0; 12];
     nonce[4..].copy_from_slice(&counter.to_le_bytes());
 
-    aead_chacha20_open_inner(buffer, key, nonce, data, aad)
+    // Handshake payloads are fixed-size and fit in a small stack buffer.
+    let mut scratch = [0u8; 48];
+    scratch[..data.len()].copy_from_slice(data);
+
+    aead_chacha20_open_inner(buffer, key, nonce, &mut scratch[..data.len()], aad)
         .map_err(|_| WireGuardError::InvalidAeadTag)?;
     Ok(())
 }
@@ -145,18 +172,12 @@ fn aead_chacha20_open_inner(
     buffer: &mut [u8],
     key: &[u8],
     nonce: [u8; 12],
-    data: &[u8],
+    data: &mut [u8],
     aad: &[u8],
 ) -> Result<(), ring::error::Unspecified> {
     let key = LessSafeKey::new(UnboundKey::new(&CHACHA20_POLY1305, key).unwrap());
 
-    let mut inner_buffer = data.to_owned();
-
-    let plaintext = key.open_in_place(
-        Nonce::assume_unique_for_key(nonce),
-        Aad::from(aad),
-        &mut inner_buffer,
-    )?;
+    let plaintext = key.open_in_place(Nonce::assume_unique_for_key(nonce), Aad::from(aad), data)?;
 
     buffer.copy_from_slice(plaintext);
 
@@ -206,11 +227,7 @@ impl Tai64N {
     }
 
     /// Parse a timestamp from a 12 byte u8 slice
-    fn parse(buf: &[u8; 12]) -> Result<Tai64N, WireGuardError> {
-        if buf.len() < 12 {
-            return Err(WireGuardError::InvalidTai64nTimestamp);
-        }
-
+    fn parse(buf: &[u8; 12]) -> Tai64N {
         let (sec_bytes, nano_bytes) = buf.split_at(std::mem::size_of::<u64>());
         let secs = u64::from_be_bytes(sec_bytes.try_into().unwrap());
         let nano = u32::from_be_bytes(nano_bytes.try_into().unwrap());
@@ -223,7 +240,7 @@ impl Tai64N {
         //   return Err(WireGuardError::InvalidTai64nTimestamp);
         //}
 
-        Ok(Tai64N { secs, nano })
+        Tai64N { secs, nano }
     }
 
     /// Check if this timestamp represents a time that is chronologically after the time represented
@@ -245,6 +262,8 @@ struct NoiseParams {
     static_shared: x25519::SharedSecret,
     /// A pre-computation of HASH("mac1----", peer_static_public) for this peer
     sending_mac1_key: [u8; KEY_LEN],
+    /// A pre-computation of HASH("cookie--", peer_static_public) for this peer
+    cookie_key: [u8; KEY_LEN],
     /// An optional preshared key
     preshared_key: Option<[u8; KEY_LEN]>,
 }
@@ -257,6 +276,7 @@ impl fmt::Debug for NoiseParams {
             .field("peer_static_public", &self.peer_static_public)
             .field("static_shared", &"<redacted>")
             .field("sending_mac1_key", &self.sending_mac1_key)
+            .field("cookie_key", &self.cookie_key)
             .field("preshared_key", &self.preshared_key)
             .finish()
     }
@@ -345,17 +365,10 @@ pub fn parse_handshake_anon(
     hash = b2s_hash(&hash, peer_ephemeral_public.as_bytes());
     // temp = HMAC(initiator.chaining_key, msg.unencrypted_ephemeral)
     // initiator.chaining_key = HMAC(temp, 0x1)
-    chaining_key = b2s_hmac(
-        &b2s_hmac(&chaining_key, peer_ephemeral_public.as_bytes()),
-        &[0x01],
-    );
+    chaining_key = b2s_kdf1(&chaining_key, peer_ephemeral_public.as_bytes());
     // temp = HMAC(initiator.chaining_key, DH(initiator.ephemeral_private, responder.static_public))
     let ephemeral_shared = static_private.diffie_hellman(&peer_ephemeral_public);
-    let temp = b2s_hmac(&chaining_key, &ephemeral_shared.to_bytes());
-    // initiator.chaining_key = HMAC(temp, 0x1)
-    chaining_key = b2s_hmac(&temp, &[0x01]);
-    // key = HMAC(temp, initiator.chaining_key || 0x2)
-    let key = b2s_hmac2(&temp, &chaining_key, &[0x02]);
+    let (_, key) = b2s_kdf2(&chaining_key, &ephemeral_shared.to_bytes());
 
     let mut peer_static_public = [0u8; KEY_LEN];
     // msg.encrypted_static = AEAD(key, 0, initiator.static_public, initiator.hash)
@@ -384,6 +397,7 @@ impl NoiseParams {
         let static_shared = static_private.diffie_hellman(&peer_static_public);
 
         let initial_sending_mac_key = b2s_hash(LABEL_MAC1, peer_static_public.as_bytes());
+        let initial_cookie_key = b2s_hash(LABEL_COOKIE, peer_static_public.as_bytes());
 
         Self {
             static_public,
@@ -391,6 +405,7 @@ impl NoiseParams {
             peer_static_public,
             static_shared,
             sending_mac1_key: initial_sending_mac_key,
+            cookie_key: initial_cookie_key,
             preshared_key,
         }
     }
@@ -501,20 +516,14 @@ impl Handshake {
         hash = b2s_hash(&hash, peer_ephemeral_public.as_bytes());
         // temp = HMAC(initiator.chaining_key, msg.unencrypted_ephemeral)
         // initiator.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(
-            &b2s_hmac(&chaining_key, peer_ephemeral_public.as_bytes()),
-            &[0x01],
-        );
+        chaining_key = b2s_kdf1(&chaining_key, peer_ephemeral_public.as_bytes());
         // temp = HMAC(initiator.chaining_key, DH(initiator.ephemeral_private, responder.static_public))
         let ephemeral_shared = self
             .params
             .static_private
             .diffie_hellman(&peer_ephemeral_public);
-        let temp = b2s_hmac(&chaining_key, &ephemeral_shared.to_bytes());
-        // initiator.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
-        // key = HMAC(temp, initiator.chaining_key || 0x2)
-        let key = b2s_hmac2(&temp, &chaining_key, &[0x02]);
+        let (new_chaining_key, key) = b2s_kdf2(&chaining_key, &ephemeral_shared.to_bytes());
+        chaining_key = new_chaining_key;
 
         let mut peer_static_public_decrypted = [0u8; KEY_LEN];
         // msg.encrypted_static = AEAD(key, 0, initiator.static_public, initiator.hash)
@@ -533,16 +542,13 @@ impl Handshake {
         // initiator.hash = HASH(initiator.hash || msg.encrypted_static)
         hash = b2s_hash(&hash, packet.encrypted_static);
         // temp = HMAC(initiator.chaining_key, DH(initiator.static_private, responder.static_public))
-        let temp = b2s_hmac(&chaining_key, self.params.static_shared.as_bytes());
-        // initiator.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
-        // key = HMAC(temp, initiator.chaining_key || 0x2)
-        let key = b2s_hmac2(&temp, &chaining_key, &[0x02]);
+        let (new_chaining_key, key) = b2s_kdf2(&chaining_key, self.params.static_shared.as_bytes());
+        chaining_key = new_chaining_key;
         // msg.encrypted_timestamp = AEAD(key, 0, TAI64N(), initiator.hash)
         let mut timestamp = [0u8; TIMESTAMP_LEN];
         aead_chacha20_open(&mut timestamp, &key, 0, packet.encrypted_timestamp, &hash)?;
 
-        let timestamp = Tai64N::parse(&timestamp)?;
+        let timestamp = Tai64N::parse(&timestamp);
         if !timestamp.after(&self.last_handshake_timestamp) {
             // Possibly a replay
             return Err(WireGuardError::WrongTai64nTimestamp);
@@ -584,18 +590,14 @@ impl Handshake {
         // responder.hash = HASH(responder.hash || msg.unencrypted_ephemeral)
         let mut hash = b2s_hash(&state.hash, unencrypted_ephemeral.as_bytes());
         // temp = HMAC(responder.chaining_key, msg.unencrypted_ephemeral)
-        let temp = b2s_hmac(&state.chaining_key, unencrypted_ephemeral.as_bytes());
-        // responder.chaining_key = HMAC(temp, 0x1)
-        let mut chaining_key = b2s_hmac(&temp, &[0x01]);
+        let (mut chaining_key, _) = b2s_kdf2(&state.chaining_key, unencrypted_ephemeral.as_bytes());
         // temp = HMAC(responder.chaining_key, DH(responder.ephemeral_private, initiator.ephemeral_public))
         let ephemeral_shared = state
             .ephemeral_private
             .diffie_hellman(&unencrypted_ephemeral);
-        let temp = b2s_hmac(&chaining_key, &ephemeral_shared.to_bytes());
-        // responder.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
+        chaining_key = b2s_kdf1(&chaining_key, &ephemeral_shared.to_bytes());
         // temp = HMAC(responder.chaining_key, DH(responder.ephemeral_private, initiator.static_public))
-        let temp = b2s_hmac(
+        chaining_key = b2s_kdf1(
             &chaining_key,
             &self
                 .params
@@ -603,19 +605,12 @@ impl Handshake {
                 .diffie_hellman(&unencrypted_ephemeral)
                 .to_bytes(),
         );
-        // responder.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
         // temp = HMAC(responder.chaining_key, preshared_key)
-        let temp = b2s_hmac(
+        let (new_chaining_key, temp2, key) = b2s_kdf3(
             &chaining_key,
             &self.params.preshared_key.unwrap_or_default(),
         );
-        // responder.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
-        // temp2 = HMAC(temp, responder.chaining_key || 0x2)
-        let temp2 = b2s_hmac2(&temp, &chaining_key, &[0x02]);
-        // key = HMAC(temp, temp2 || 0x3)
-        let key = b2s_hmac2(&temp, &temp2, &[0x03]);
+        chaining_key = new_chaining_key;
         // responder.hash = HASH(responder.hash || temp2)
         hash = b2s_hash(&hash, &temp2);
         // msg.encrypted_nothing = AEAD(key, 0, [empty], responder.hash)
@@ -632,9 +627,7 @@ impl Handshake {
         // initiator.receiving_key = temp3
         // initiator.sending_key_counter = 0
         // initiator.receiving_key_counter = 0
-        let temp1 = b2s_hmac(&chaining_key, &[]);
-        let temp2 = b2s_hmac(&temp1, &[0x01]);
-        let temp3 = b2s_hmac2(&temp1, &temp2, &[0x02]);
+        let (temp2, temp3) = b2s_kdf2(&chaining_key, &[]);
 
         let rtt_time = Instant::now().duration_since(state.time_sent);
         self.last_rtt = Some(rtt_time.as_millis() as u32);
@@ -660,20 +653,20 @@ impl Handshake {
             return Err(WireGuardError::WrongIndex);
         }
         // msg.encrypted_cookie = XAEAD(HASH(LABEL_COOKIE || responder.static_public), msg.nonce, cookie, last_received_msg.mac1)
-        let key = b2s_hash(LABEL_COOKIE, self.params.peer_static_public.as_bytes()); // TODO: pre-compute
 
-        let payload = Payload {
-            aad: &mac1[0..16],
-            msg: packet.encrypted_cookie,
-        };
-        let plaintext = XChaCha20Poly1305::new_from_slice(&key)
+        let mut cookie = [0u8; COOKIE_SIZE];
+        cookie.copy_from_slice(&packet.encrypted_cookie[..COOKIE_SIZE]);
+
+        XChaCha20Poly1305::new_from_slice(&self.params.cookie_key)
             .unwrap()
-            .decrypt(packet.nonce.into(), payload)
+            .decrypt_in_place_detached(
+                XNonce::from_slice(packet.nonce),
+                &mac1,
+                &mut cookie,
+                Tag::from_slice(&packet.encrypted_cookie[COOKIE_SIZE..]),
+            )
             .map_err(|_| WireGuardError::InvalidAeadTag)?;
 
-        let cookie = plaintext
-            .try_into()
-            .map_err(|_| WireGuardError::InvalidPacket)?;
         self.cookies.write_cookie = Some(cookie);
         Ok(())
     }
@@ -737,14 +730,11 @@ impl Handshake {
         hash = b2s_hash(&hash, unencrypted_ephemeral);
         // temp = HMAC(initiator.chaining_key, msg.unencrypted_ephemeral)
         // initiator.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&b2s_hmac(&chaining_key, unencrypted_ephemeral), &[0x01]);
+        chaining_key = b2s_kdf1(&chaining_key, unencrypted_ephemeral);
         // temp = HMAC(initiator.chaining_key, DH(initiator.ephemeral_private, responder.static_public))
         let ephemeral_shared = ephemeral_private.diffie_hellman(&self.params.peer_static_public);
-        let temp = b2s_hmac(&chaining_key, &ephemeral_shared.to_bytes());
-        // initiator.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
-        // key = HMAC(temp, initiator.chaining_key || 0x2)
-        let key = b2s_hmac2(&temp, &chaining_key, &[0x02]);
+        let (new_chaining_key, key) = b2s_kdf2(&chaining_key, &ephemeral_shared.to_bytes());
+        chaining_key = new_chaining_key;
         // msg.encrypted_static = AEAD(key, 0, initiator.static_public, initiator.hash)
         aead_chacha20_seal(
             encrypted_static,
@@ -756,11 +746,8 @@ impl Handshake {
         // initiator.hash = HASH(initiator.hash || msg.encrypted_static)
         hash = b2s_hash(&hash, encrypted_static);
         // temp = HMAC(initiator.chaining_key, DH(initiator.static_private, responder.static_public))
-        let temp = b2s_hmac(&chaining_key, self.params.static_shared.as_bytes());
-        // initiator.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
-        // key = HMAC(temp, initiator.chaining_key || 0x2)
-        let key = b2s_hmac2(&temp, &chaining_key, &[0x02]);
+        let (new_chaining_key, key) = b2s_kdf2(&chaining_key, self.params.static_shared.as_bytes());
+        chaining_key = new_chaining_key;
         // msg.encrypted_timestamp = AEAD(key, 0, TAI64N(), initiator.hash)
         let timestamp = self.stamper.stamp();
         aead_chacha20_seal(encrypted_timestamp, &key, 0, &timestamp, &hash);
@@ -823,34 +810,23 @@ impl Handshake {
         // responder.hash = HASH(responder.hash || msg.unencrypted_ephemeral)
         hash = b2s_hash(&hash, unencrypted_ephemeral);
         // temp = HMAC(responder.chaining_key, msg.unencrypted_ephemeral)
-        let temp = b2s_hmac(&chaining_key, unencrypted_ephemeral);
-        // responder.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
+        chaining_key = b2s_kdf1(&chaining_key, unencrypted_ephemeral);
         // temp = HMAC(responder.chaining_key, DH(responder.ephemeral_private, initiator.ephemeral_public))
         let ephemeral_shared = ephemeral_private.diffie_hellman(&peer_ephemeral_public);
-        let temp = b2s_hmac(&chaining_key, &ephemeral_shared.to_bytes());
-        // responder.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
+        chaining_key = b2s_kdf1(&chaining_key, &ephemeral_shared.to_bytes());
         // temp = HMAC(responder.chaining_key, DH(responder.ephemeral_private, initiator.static_public))
-        let temp = b2s_hmac(
+        chaining_key = b2s_kdf1(
             &chaining_key,
             &ephemeral_private
                 .diffie_hellman(&self.params.peer_static_public)
                 .to_bytes(),
         );
-        // responder.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
         // temp = HMAC(responder.chaining_key, preshared_key)
-        let temp = b2s_hmac(
+        let (new_chaining_key, temp2, key) = b2s_kdf3(
             &chaining_key,
             &self.params.preshared_key.unwrap_or_default(),
         );
-        // responder.chaining_key = HMAC(temp, 0x1)
-        chaining_key = b2s_hmac(&temp, &[0x01]);
-        // temp2 = HMAC(temp, responder.chaining_key || 0x2)
-        let temp2 = b2s_hmac2(&temp, &chaining_key, &[0x02]);
-        // key = HMAC(temp, temp2 || 0x3)
-        let key = b2s_hmac2(&temp, &temp2, &[0x03]);
+        chaining_key = new_chaining_key;
         // responder.hash = HASH(responder.hash || temp2)
         hash = b2s_hash(&hash, &temp2);
         // msg.encrypted_nothing = AEAD(key, 0, [empty], responder.hash)
@@ -864,9 +840,7 @@ impl Handshake {
         // initiator.receiving_key = temp3
         // initiator.sending_key_counter = 0
         // initiator.receiving_key_counter = 0
-        let temp1 = b2s_hmac(&chaining_key, &[]);
-        let temp2 = b2s_hmac(&temp1, &[0x01]);
-        let temp3 = b2s_hmac2(&temp1, &temp2, &[0x02]);
+        let (temp2, temp3) = b2s_kdf2(&chaining_key, &[]);
 
         let dst = self.append_mac1_and_mac2(local_index, &mut dst[..super::HANDSHAKE_RESP_SZ]);
 

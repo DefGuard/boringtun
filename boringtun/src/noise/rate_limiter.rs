@@ -23,7 +23,7 @@ use super::{
 use crate::sleepyinstant::Instant;
 
 const COOKIE_REFRESH: u64 = 128; // Use 128 and not 120 so the compiler can optimize out the division
-const COOKIE_SIZE: usize = 16;
+pub(super) const COOKIE_SIZE: usize = 16;
 const COOKIE_NONCE_SIZE: usize = 24;
 
 /// How often should reset count in seconds
