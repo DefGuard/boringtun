@@ -24,7 +24,7 @@ mock-instant = ["mock_instant"]
 [dependencies]
 aead = "0.5"
 base64 = "0.22"
-blake2 = "0.10"
+blake2 = { version = "0.10", default-features = false }
 chacha20poly1305 = "0.10"
 hex = "0.4"
 hmac = "0.12"
@@ -33,14 +33,15 @@ ip_network_table = "0.2"
 libc = "0.2"
 mock_instant = { version = "0.6", optional = true }
 parking_lot = "0.12"
-ring = "0.17"
+ring = { version = "0.17", default-features = false }
 socket2 = { version = "0.6", features = ["all"], optional = true }
 thiserror = { version = "2", optional = true }
 tracing = "0.1.40"
 tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
 uniffi = { version = "0.31", features = ["cli"] }
 untrusted = "0.9"
-x25519-dalek = { version = "2", features = [
+x25519-dalek = { version = "2", default-features = false, features = [
+    "precomputed-tables",
     "reusable_secrets",
     "static_secrets",
 ] }
@@ -55,7 +56,7 @@ nix = { version = "0.31", default-features = false, features = [
 uniffi = { version = "0.31", features = ["build"] }
 
 [dev-dependencies]
-criterion = { version = "0.8", features = ["html_reports"] }
+criterion = { version = "0.8", default-features = false }
 etherparse = "0.20"
 tracing-subscriber = "0.3"
 
