@@ -93,7 +93,7 @@ impl Peer {
         }
     }
 
-    pub fn set_endpoint(&self, addr: SocketAddr) {
+    pub fn set_endpoint(&self, addr: SocketAddr) -> bool {
         let mut endpoint = self.endpoint.write();
         if endpoint.addr != Some(addr) {
             // We only need to update the endpoint if it differs from the current one
@@ -102,6 +102,9 @@ impl Peer {
             }
 
             endpoint.addr = Some(addr);
+            true
+        } else {
+            false
         }
     }
 
@@ -158,6 +161,10 @@ impl Peer {
 
     pub fn time_since_last_handshake(&self) -> Option<std::time::Duration> {
         self.tunnel.time_since_last_handshake()
+    }
+
+    pub fn last_handshake_time(&self) -> Option<std::time::Duration> {
+        self.tunnel.last_handshake_time()
     }
 
     pub fn persistent_keepalive(&self) -> Option<u16> {

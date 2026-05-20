@@ -113,11 +113,11 @@ impl Tunnel {
     pub fn stats(&self) -> TunnelStats {
         match self.0.lock() {
             Ok(tunn) => {
-                let (time, tx_bytes, rx_bytes, ..) = tunn.stats();
+                let (_, tx_bytes, rx_bytes, ..) = tunn.stats();
                 TunnelStats {
                     tx_bytes: tx_bytes as u64,
                     rx_bytes: rx_bytes as u64,
-                    last_handshake: time.map_or(0, |dur| dur.as_secs()),
+                    last_handshake: tunn.last_handshake_time().map_or(0, |time| time.as_secs()),
                 }
             }
             _ => TunnelStats {

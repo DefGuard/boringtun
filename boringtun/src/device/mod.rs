@@ -46,6 +46,7 @@ use std::{
         atomic::{AtomicUsize, Ordering},
     },
     thread::{self, JoinHandle},
+    time::Duration,
 };
 
 use aead::rand_core::{OsRng, RngCore};
@@ -70,6 +71,7 @@ const HANDSHAKE_RATE_LIMIT: u64 = 100; // The number of handshakes per second we
 
 const MAX_UDP_SIZE: usize = (1 << 16) - 1;
 const MAX_ITR: usize = 100; // Number of packets to handle per handler call
+const PEER_TIMER_INTERVAL: Duration = Duration::from_secs(1);
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
@@ -223,24 +225,26 @@ impl DeviceHandle {
         let mut thread_local = ThreadData {
             src_buf: [0u8; MAX_UDP_SIZE],
             dst_buf: [0u8; MAX_UDP_SIZE],
-            iface: if _i == 0 || !device.read().config.use_multi_queue {
-                // For the first thread use the original iface
-                Arc::clone(&device.read().iface)
-            } else {
-                // For for the rest create a new iface queue
-                let iface_local = Arc::new(
-                    TunSocket::new(&device.read().iface.name().unwrap())
-                        .unwrap()
-                        .set_non_blocking()
-                        .unwrap(),
-                );
+            iface: {
+                let device_read = device.read();
+                if _i == 0 || !device_read.config.use_multi_queue {
+                    // For the first thread use the original iface
+                    Arc::clone(&device_read.iface)
+                } else {
+                    // For for the rest create a new iface queue
+                    let iface_local = Arc::new(
+                        TunSocket::new(&device_read.iface.name().unwrap())
+                            .unwrap()
+                            .set_non_blocking()
+                            .unwrap(),
+                    );
 
-                device
-                    .read()
-                    .register_iface_handler(Arc::clone(&iface_local))
-                    .ok();
+                    device_read
+                        .register_iface_handler(Arc::clone(&iface_local))
+                        .ok();
 
-                iface_local
+                    iface_local
+                }
             },
         };
 
@@ -373,9 +377,7 @@ impl Device {
 
         // Create a tunnel device
         let iface = Arc::new(TunSocket::new(name)?.set_non_blocking()?);
-        eprintln!("DEBUG");
         let mtu = iface.mtu()?;
-        eprintln!("DEBUG");
 
         #[cfg(not(target_os = "linux"))]
         let uapi_fd = -1;
@@ -548,7 +550,7 @@ impl Device {
                 }
                 Action::Continue
             }),
-            std::time::Duration::from_secs(1),
+            Duration::from_secs(1),
         )?;
 
         self.queue.new_periodic_event(
@@ -588,7 +590,10 @@ impl Device {
                 }
                 Action::Continue
             }),
-            std::time::Duration::from_millis(250),
+            // This used to be 250ms.
+            // Peer timers in `noise::timers` are tracked at second-level granularity,
+            // so scanning all peers four times per second just adds lock traffic.
+            PEER_TIMER_INTERVAL,
         )?;
         Ok(())
     }
@@ -653,37 +658,58 @@ impl Device {
                     };
 
                     let Some(peer) = peer else { continue };
-                    let mut p = peer.lock();
+                    let mut flush = false;
+                    let mut packet_to_network = None;
+                    let mut packet_to_tunnel = None;
+                    let mut packet_to_tunnel_v6 = false;
 
-                    // We found a peer, use it to decapsulate the message+
-                    let mut flush = false; // Are there packets to send from the queue?
-                    match p
-                        .tunnel
-                        .handle_verified_packet(parsed_packet, &mut t.dst_buf[..])
                     {
-                        TunnResult::Done => {}
-                        TunnResult::Err(_) => continue,
-                        TunnResult::WriteToNetwork(packet) => {
-                            flush = true;
-                            let _: Result<_, _> = udp.send_to(packet, &addr);
-                        }
-                        TunnResult::WriteToTunnelV4(packet, addr) => {
-                            if p.is_allowed_ip(addr) {
-                                let _ = t.iface.write4(packet);
+                        let mut p = peer.lock();
+
+                        // We found a peer, use it to decapsulate the message.
+                        match p
+                            .tunnel
+                            .handle_verified_packet(parsed_packet, &mut t.dst_buf[..])
+                        {
+                            TunnResult::Done => {}
+                            TunnResult::Err(_) => continue,
+                            TunnResult::WriteToNetwork(packet) => {
+                                flush = true;
+                                packet_to_network = Some(packet);
+                            }
+                            TunnResult::WriteToTunnelV4(packet, addr) => {
+                                if p.is_allowed_ip(addr) {
+                                    packet_to_tunnel = Some(packet);
+                                }
+                            }
+                            TunnResult::WriteToTunnelV6(packet, addr) => {
+                                if p.is_allowed_ip(addr) {
+                                    packet_to_tunnel = Some(packet);
+                                    packet_to_tunnel_v6 = true;
+                                }
                             }
                         }
-                        TunnResult::WriteToTunnelV6(packet, addr) => {
-                            if p.is_allowed_ip(addr) {
-                                let _ = t.iface.write6(packet);
-                            }
+                    }
+
+                    if let Some(packet) = packet_to_network {
+                        let _: Result<_, _> = udp.send_to(packet, &addr);
+                    } else if let Some(packet) = packet_to_tunnel {
+                        if packet_to_tunnel_v6 {
+                            let _ = t.iface.write6(packet);
+                        } else {
+                            let _ = t.iface.write4(packet);
                         }
                     }
 
                     if flush {
                         // Flush pending queue
-                        while let TunnResult::WriteToNetwork(packet) =
-                            p.tunnel.decapsulate(None, &[], &mut t.dst_buf[..])
-                        {
+                        while let Some(packet) = {
+                            let mut p = peer.lock();
+                            match p.tunnel.decapsulate(None, &[], &mut t.dst_buf[..]) {
+                                TunnResult::WriteToNetwork(packet) => Some(packet),
+                                _ => None,
+                            }
+                        } {
                             let _: Result<_, _> = udp.send_to(packet, &addr);
                         }
                     }
@@ -691,8 +717,10 @@ impl Device {
                     // This packet was OK, that means we want to create a connected socket for this peer
                     let addr = addr.as_socket().unwrap();
                     let ip_addr = addr.ip();
-                    p.set_endpoint(addr);
+                    let p = peer.lock();
+                    let endpoint_changed = p.set_endpoint(addr);
                     if d.config.use_connected_socket
+                        && (endpoint_changed || p.endpoint().conn.is_none())
                         && let Ok(sock) = p.connect_endpoint(d.listen_port, d.fwmark)
                     {
                         d.register_conn_handler(Arc::clone(peer), sock, ip_addr)
@@ -731,35 +759,56 @@ impl Device {
 
                 while let Ok(read_bytes) = udp.recv(src_buf) {
                     let mut flush = false;
-                    let mut p = peer.lock();
-                    match p.tunnel.decapsulate(
-                        Some(peer_addr),
-                        &t.src_buf[..read_bytes],
-                        &mut t.dst_buf[..],
-                    ) {
-                        TunnResult::Done => {}
-                        TunnResult::Err(e) => eprintln!("Decapsulate error {e:?}"),
-                        TunnResult::WriteToNetwork(packet) => {
-                            flush = true;
-                            let _: Result<_, _> = udp.send(packet);
-                        }
-                        TunnResult::WriteToTunnelV4(packet, addr) => {
-                            if p.is_allowed_ip(addr) {
-                                let _ = iface.write4(packet);
+                    let mut packet_to_network = None;
+                    let mut packet_to_tunnel = None;
+                    let mut packet_to_tunnel_v6 = false;
+
+                    {
+                        let mut p = peer.lock();
+                        match p.tunnel.decapsulate(
+                            Some(peer_addr),
+                            &t.src_buf[..read_bytes],
+                            &mut t.dst_buf[..],
+                        ) {
+                            TunnResult::Done => {}
+                            TunnResult::Err(e) => eprintln!("Decapsulate error {e:?}"),
+                            TunnResult::WriteToNetwork(packet) => {
+                                flush = true;
+                                packet_to_network = Some(packet);
+                            }
+                            TunnResult::WriteToTunnelV4(packet, addr) => {
+                                if p.is_allowed_ip(addr) {
+                                    packet_to_tunnel = Some(packet);
+                                }
+                            }
+                            TunnResult::WriteToTunnelV6(packet, addr) => {
+                                if p.is_allowed_ip(addr) {
+                                    packet_to_tunnel = Some(packet);
+                                    packet_to_tunnel_v6 = true;
+                                }
                             }
                         }
-                        TunnResult::WriteToTunnelV6(packet, addr) => {
-                            if p.is_allowed_ip(addr) {
-                                let _ = iface.write6(packet);
-                            }
+                    }
+
+                    if let Some(packet) = packet_to_network {
+                        let _: Result<_, _> = udp.send(packet);
+                    } else if let Some(packet) = packet_to_tunnel {
+                        if packet_to_tunnel_v6 {
+                            let _ = iface.write6(packet);
+                        } else {
+                            let _ = iface.write4(packet);
                         }
                     }
 
                     if flush {
                         // Flush pending queue
-                        while let TunnResult::WriteToNetwork(packet) =
-                            p.tunnel.decapsulate(None, &[], &mut t.dst_buf[..])
-                        {
+                        while let Some(packet) = {
+                            let mut p = peer.lock();
+                            match p.tunnel.decapsulate(None, &[], &mut t.dst_buf[..]) {
+                                TunnResult::WriteToNetwork(packet) => Some(packet),
+                                _ => None,
+                            }
+                        } {
                             let _: Result<_, _> = udp.send(packet);
                         }
                     }
