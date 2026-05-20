@@ -192,7 +192,7 @@ fn api_get(writer: &mut BufWriter<&UnixStream>, d: &Device) -> i32 {
             writeln!(writer, "allowed_ip={ip}/{cidr}");
         }
 
-        if let Some(time) = p.time_since_last_handshake() {
+        if let Some(time) = p.last_handshake_time() {
             writeln!(writer, "last_handshake_time_sec={}", time.as_secs());
             writeln!(writer, "last_handshake_time_nsec={}", time.subsec_nanos());
         }

@@ -13,7 +13,7 @@ use std::{
     convert::{TryFrom, TryInto},
     net::{IpAddr, Ipv4Addr, Ipv6Addr},
     sync::Arc,
-    time::Duration,
+    time::{Duration, SystemTime, UNIX_EPOCH},
 };
 
 use self::{
@@ -591,6 +591,13 @@ impl Tunn {
         let rtt = self.handshake.last_rtt;
 
         (time, tx_bytes, rx_bytes, loss, rtt)
+    }
+
+    pub fn last_handshake_time(&self) -> Option<Duration> {
+        SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .ok()?
+            .checked_sub(self.time_since_last_handshake()?)
     }
 }
 
