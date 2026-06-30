@@ -14,7 +14,7 @@ use std::{
     sync::Once,
 };
 
-use aead::rand_core::OsRng;
+use aead::rand_core::Rng;
 use base64::prelude::*;
 use hex::encode as encode_hex;
 use libc::{SIGSEGV, raise};

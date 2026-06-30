@@ -607,16 +607,16 @@ mod tests {
     use crate::noise::timers::{REKEY_AFTER_TIME, REKEY_TIMEOUT};
 
     use super::*;
-    use aead::rand_core::{OsRng, RngCore};
+    use rand::Rng;
 
     fn create_two_tuns() -> (Tunn, Tunn) {
-        let my_secret_key = x25519_dalek::StaticSecret::random_from_rng(OsRng);
+        let my_secret_key = x25519_dalek::StaticSecret::random();
         let my_public_key = x25519_dalek::PublicKey::from(&my_secret_key);
-        let my_idx = OsRng.next_u32();
+        let my_idx = rand::rng().next_u32();
 
-        let their_secret_key = x25519_dalek::StaticSecret::random_from_rng(OsRng);
+        let their_secret_key = x25519_dalek::StaticSecret::random();
         let their_public_key = x25519_dalek::PublicKey::from(&their_secret_key);
-        let their_idx = OsRng.next_u32();
+        let their_idx = rand::rng().next_u32();
 
         let my_tun = Tunn::new(my_secret_key, their_public_key, None, None, my_idx, None);
 

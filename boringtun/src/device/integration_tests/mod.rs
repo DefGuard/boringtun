@@ -11,7 +11,7 @@ mod tests {
     };
     use base64::encode as base64encode;
     use hex::encode;
-    use rand_core::OsRng;
+    use rand_core::Rng;
     use ring::rand::{SecureRandom, SystemRandom};
     use std::{
         fmt::Write as _,

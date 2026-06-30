@@ -257,7 +257,11 @@ impl Tunn {
                 // handshake.
                 if session_established < data_packet_received
                     && now.checked_sub(session_established).unwrap()
-                        >= REJECT_AFTER_TIME.checked_sub(KEEPALIVE_TIMEOUT).unwrap() - REKEY_TIMEOUT
+                        >= REJECT_AFTER_TIME
+                            .checked_sub(KEEPALIVE_TIMEOUT)
+                            .unwrap()
+                            .checked_sub(REKEY_TIMEOUT)
+                            .unwrap()
                 {
                     tracing::warn!(
                         "HANDSHAKE(REJECT_AFTER_TIME - KEEPALIVE_TIMEOUT - \
