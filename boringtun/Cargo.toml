@@ -41,7 +41,7 @@ tracing = "0.1.40"
 tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
 uniffi = { version = "0.32", features = ["cli"] }
 untrusted = "0.9"
-x25519-dalek = { version = "2", default-features = false, features = [
+x25519-dalek = { version = "3", default-features = false, features = [
     "getrandom",
     "precomputed-tables",
     "reusable_secrets",
