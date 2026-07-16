@@ -1,7 +1,7 @@
 [package]
 name = "defguard_boringtun"
 description = "an implementation of the WireGuard® protocol designed for portability and speed"
-version = "0.6.6"
+version = "0.6.7"
 rust-version = "1.91.0"
 authors = [
     "Noah Kennedy <nkennedy@cloudflare.com>",
@@ -16,10 +16,11 @@ edition = "2024"
 
 [features]
 default = []
-device = ["socket2", "thiserror"]
-ffi-bindings = ["tracing-subscriber"]
+bindgen = ["dep:uniffi"]
+device = ["dep:socket2", "dep:thiserror"]
+ffi-bindings = ["dep:tracing-subscriber"]
 # mocks std::time::Instant with mock_instant
-mock-instant = ["mock_instant"]
+mock-instant = ["dep:mock_instant"]
 
 [dependencies]
 aead = "0.5"
@@ -36,11 +37,10 @@ parking_lot = "0.12"
 ring = { version = "0.17", default-features = false }
 socket2 = { version = "0.6", features = ["all"], optional = true }
 thiserror = { version = "2", optional = true }
-tracing = "0.1.40"
+tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
-uniffi = { version = "0.31", features = ["cli"] }
-untrusted = "0.9"
-x25519-dalek = { version = "2", default-features = false, features = [
+uniffi = { version = "0.32", features = ["cli"], optional = true }
+x25519-dalek = { version = "2.0", default-features = false, features = [
     "precomputed-tables",
     "reusable_secrets",
     "static_secrets",
@@ -53,7 +53,7 @@ nix = { version = "0.31", default-features = false, features = [
 ] }
 
 [build-dependencies]
-uniffi = { version = "0.31", features = ["build"] }
+uniffi = { version = "0.32", features = ["build"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false }
@@ -70,3 +70,4 @@ harness = false
 [[bin]]
 name = "uniffi-bindgen"
 path = "bin/uniffi-bindgen.rs"
+required-features = ["bindgen"]

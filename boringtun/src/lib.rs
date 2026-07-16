@@ -27,5 +27,7 @@ pub mod x25519 {
 }
 
 // UniFFI interface.
+#[cfg(feature = "bindgen")]
 pub mod export;
+#[cfg(feature = "bindgen")]
 uniffi::setup_scaffolding!();

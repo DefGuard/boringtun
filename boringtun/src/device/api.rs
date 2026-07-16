@@ -140,7 +140,7 @@ impl Device {
 
                 Action::Continue
             }),
-            std::time::Duration::from_millis(1000),
+            std::time::Duration::from_secs(1),
         )?;
 
         Ok(())
