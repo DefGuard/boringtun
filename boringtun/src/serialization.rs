@@ -1,14 +1,17 @@
 use std::{fmt, str::FromStr};
 
-use aead::OsRng;
+#[cfg(feature = "bindgen")]
+use aead::rand_core::OsRng;
 use base64::prelude::*;
+#[cfg(feature = "bindgen")]
 use x25519_dalek::StaticSecret;
 
 const KEY_SIZE: usize = 32;
 
 pub struct KeyBytes(pub(crate) [u8; KEY_SIZE]);
 
-#[derive(Debug, uniffi::Enum)]
+#[derive(Debug)]
+#[cfg_attr(feature = "bindgen", derive(uniffi::Enum))]
 pub enum KeyBytesError {
     IllegalCharacter,
     IllegalSize,
@@ -59,6 +62,7 @@ impl FromStr for KeyBytes {
     }
 }
 
+#[cfg(feature = "bindgen")]
 impl KeyBytes {
     pub fn secret() -> Self {
         let key = StaticSecret::random_from_rng(OsRng).to_bytes();
