@@ -508,7 +508,7 @@ dependencies = [
 
 [[package]]
 name = "defguard_boringtun_cli"
-version = "0.6.5"
+version = "0.6.7"
 dependencies = [
  "clap",
  "daemonize",
