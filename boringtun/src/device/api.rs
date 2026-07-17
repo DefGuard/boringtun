@@ -142,7 +142,7 @@ impl Device {
 
                 Action::Continue
             }),
-            Duration::from_millis(1000),
+            Duration::from_secs(1),
         )?;
 
         Ok(())
