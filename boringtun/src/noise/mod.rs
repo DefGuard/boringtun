@@ -87,6 +87,8 @@ const HANDSHAKE_INIT_SZ: usize = 148;
 const HANDSHAKE_RESP_SZ: usize = 92;
 const COOKIE_REPLY_SZ: usize = 64;
 const DATA_OVERHEAD_SZ: usize = 32;
+/// Size of a packet header: 4-byte type + 4-byte receiver index + 8-byte counter.
+const DATA_MSG_HEADER_SZ: usize = 16;
 
 #[derive(Debug)]
 pub struct HandshakeInit<'a> {
@@ -261,11 +263,12 @@ impl Tunn {
             // Send the packet using an established session
             let packet = session.format_packet_data(src, dst);
             self.timer_tick(TimerName::TimeLastPacketSent);
-            // Exclude Keepalive packets from timer update.
+            // Exclude KeepAlive packets from timer update.
             if !src.is_empty() {
                 self.timer_tick(TimerName::TimeLastDataPacketSent);
             }
-            self.tx_bytes += src.len();
+            // Include KeepAlive packets in the statistics.
+            self.tx_bytes += packet.len();
             return TunnResult::WriteToNetwork(packet);
         }
 
@@ -470,6 +473,9 @@ impl Tunn {
     /// Check if an IP packet is v4 or v6, truncate to the length indicated by the length field
     /// Returns the truncated packet and the source IP as TunnResult
     fn validate_decapsulated_packet<'a>(&mut self, packet: &'a mut [u8]) -> TunnResult<'a> {
+        // Include KeepAlive packets in the statistics.
+        self.rx_bytes += DATA_MSG_HEADER_SZ + packet.len();
+
         let (computed_len, src_ip_address) = match packet.len() {
             0 => return TunnResult::Done, // This is keepalive, and not an error
             _ if packet[0] >> 4 == 4 && packet.len() >= IPV4_MIN_HEADER_SIZE => {
@@ -506,7 +512,6 @@ impl Tunn {
         }
 
         self.timer_tick(TimerName::TimeLastDataPacketReceived);
-        self.rx_bytes += computed_len;
 
         match src_ip_address {
             IpAddr::V4(addr) => TunnResult::WriteToTunnelV4(&mut packet[..computed_len], addr),
