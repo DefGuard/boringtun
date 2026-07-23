@@ -59,7 +59,7 @@ uniffi = { version = "0.32", features = ["build"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false }
-etherparse = "0.20"
+etherparse = "0.21"
 tracing-subscriber = "0.3"
 
 [lib]
