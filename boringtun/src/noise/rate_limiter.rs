@@ -140,7 +140,7 @@ impl RateLimiter {
 
         let cipher = XChaCha20Poly1305::new(&self.cookie_key);
 
-        let iv: XNonce = XNonce::try_from(&nonce[..]).unwrap();
+        let iv = XNonce::try_from(&nonce[..]).unwrap();
 
         encrypted_cookie[..16].copy_from_slice(&cookie);
         let tag = cipher

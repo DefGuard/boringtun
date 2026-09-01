@@ -150,7 +150,7 @@ fn aead_chacha20_open(
     data: &[u8],
     aad: &[u8],
 ) -> Result<(), WireGuardError> {
-    let mut nonce: [u8; 12] = [0; 12];
+    let mut nonce = [0; 12];
     nonce[4..].copy_from_slice(&counter.to_le_bytes());
 
     // Handshake payloads are fixed-size and fit in a small stack buffer.
@@ -170,10 +170,10 @@ fn aead_chacha20_open_inner(
     data: &mut [u8],
     aad: &[u8],
 ) -> Result<(), aead::Error> {
-    let n: ChaChaNonce = ChaChaNonce::try_from(nonce.as_slice()).unwrap();
+    let n = ChaChaNonce::try_from(nonce.as_slice()).unwrap();
     let ciphertext_len = data.len() - 16;
     let (ciphertext, tag_bytes) = data.split_at_mut(ciphertext_len);
-    let tag: Tag = Tag::try_from(&tag_bytes[..]).unwrap();
+    let tag = Tag::try_from(&tag_bytes[..]).unwrap();
     ChaCha20Poly1305::new_from_slice(key)
         .unwrap()
         .decrypt_inout_detached(&n, aad, ciphertext.into(), &tag)?;
@@ -654,7 +654,7 @@ impl Handshake {
         let mut cookie = [0u8; COOKIE_SIZE];
         cookie.copy_from_slice(&packet.encrypted_cookie[..COOKIE_SIZE]);
 
-        let xnonce: XNonce = XNonce::try_from(packet.nonce).unwrap();
+        let xnonce = XNonce::try_from(packet.nonce).unwrap();
         let tag: Tag = Tag::try_from(&packet.encrypted_cookie[COOKIE_SIZE..]).unwrap();
         XChaCha20Poly1305::new_from_slice(&self.params.cookie_key)
             .unwrap()
