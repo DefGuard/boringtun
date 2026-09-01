@@ -132,7 +132,7 @@ fn aead_chacha20_seal_inner(
     data: &[u8],
     aad: &[u8],
 ) {
-    let n: ChaChaNonce = ChaChaNonce::try_from(nonce.as_slice()).unwrap();
+    let n = ChaChaNonce::try_from(nonce.as_slice()).unwrap();
     ciphertext[..data.len()].copy_from_slice(data);
     let tag = ChaCha20Poly1305::new_from_slice(key)
         .unwrap()
