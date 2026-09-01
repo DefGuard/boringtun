@@ -634,9 +634,7 @@ mod tests {
         let mut dst = vec![0u8; 2048];
         let handshake_init = tun.format_handshake_initiation(&mut dst, false);
         assert!(matches!(handshake_init, TunnResult::WriteToNetwork(_)));
-        let handshake_init = if let TunnResult::WriteToNetwork(sent) = handshake_init {
-            sent
-        } else {
+        let TunnResult::WriteToNetwork(handshake_init) = handshake_init else {
             unreachable!();
         };
 
@@ -648,9 +646,7 @@ mod tests {
         let handshake_resp = tun.decapsulate(None, handshake_init, &mut dst);
         assert!(matches!(handshake_resp, TunnResult::WriteToNetwork(_)));
 
-        let handshake_resp = if let TunnResult::WriteToNetwork(sent) = handshake_resp {
-            sent
-        } else {
+        let TunnResult::WriteToNetwork(handshake_resp) = handshake_resp else {
             unreachable!();
         };
 
@@ -662,9 +658,7 @@ mod tests {
         let keepalive = tun.decapsulate(None, handshake_resp, &mut dst);
         assert!(matches!(keepalive, TunnResult::WriteToNetwork(_)));
 
-        let keepalive = if let TunnResult::WriteToNetwork(sent) = keepalive {
-            sent
-        } else {
+        let TunnResult::WriteToNetwork(keepalive) = keepalive else {
             unreachable!();
         };
 
@@ -797,17 +791,13 @@ mod tests {
 
         let data = my_tun.encapsulate(&sent_packet_buf, &mut my_dst);
         assert!(matches!(data, TunnResult::WriteToNetwork(_)));
-        let data = if let TunnResult::WriteToNetwork(sent) = data {
-            sent
-        } else {
+        let TunnResult::WriteToNetwork(data) = data else {
             unreachable!();
         };
 
         let data = their_tun.decapsulate(None, data, &mut their_dst);
         assert!(matches!(data, TunnResult::WriteToTunnelV4(..)));
-        let recv_packet_buf = if let TunnResult::WriteToTunnelV4(recv, _addr) = data {
-            recv
-        } else {
+        let TunnResult::WriteToTunnelV4(recv_packet_buf, _addr) = data else {
             unreachable!();
         };
         assert_eq!(sent_packet_buf, recv_packet_buf);
