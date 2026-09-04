@@ -1,5 +1,7 @@
-use blake2::digest::{FixedOutput, KeyInit};
-use blake2::{Blake2s256, Blake2sMac, Digest};
+use blake2::{
+    Blake2s256, Blake2sMac, Digest,
+    digest::{FixedOutput, KeyInit, consts::U16},
+};
 use criterion::{BenchmarkId, Criterion, Throughput};
 use ring::rand::{SecureRandom, SystemRandom};
 
@@ -77,7 +79,7 @@ pub fn bench_blake2s_keyed(c: &mut Criterion) {
                     key
                 },
                 |key| -> [u8; 16] {
-                    let mut hmac = Blake2sMac::new_from_slice(&key).unwrap();
+                    let mut hmac: Blake2sMac<U16> = Blake2sMac::new_from_slice(&key).unwrap();
                     blake2::digest::Update::update(&mut hmac, &buf_in);
                     hmac.finalize_fixed().into()
                 },

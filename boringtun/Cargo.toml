@@ -1,7 +1,7 @@
 [package]
 name = "defguard_boringtun"
 description = "an implementation of the WireGuard® protocol designed for portability and speed"
-version = "0.6.8"
+version = "0.7.0"
 rust-version = "1.91.0"
 authors = [
     "Noah Kennedy <nkennedy@cloudflare.com>",
@@ -23,24 +23,26 @@ ffi-bindings = ["dep:tracing-subscriber"]
 mock-instant = ["dep:mock_instant"]
 
 [dependencies]
-aead = "0.5"
-base64 = "0.22"
-blake2 = { version = "0.10", default-features = false }
-chacha20poly1305 = "0.10"
+aead = "0.6"
+base64 = "0.23"
+blake2 = { version = "0.11", default-features = false }
+chacha20poly1305 = "0.11"
 hex = "0.4"
-hmac = "0.12"
+hmac = "0.13"
 ip_network = "0.4"
 ip_network_table = "0.2"
 libc = "0.2"
 mock_instant = { version = "0.6", optional = true }
 parking_lot = "0.12"
+rand = "0.10"
 ring = { version = "0.17", default-features = false }
 socket2 = { version = "0.6", features = ["all"], optional = true }
 thiserror = { version = "2", optional = true }
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["fmt"], optional = true }
 uniffi = { version = "0.32", features = ["cli"], optional = true }
-x25519-dalek = { version = "2.0", default-features = false, features = [
+x25519-dalek = { version = "3.0", default-features = false, features = [
+    "getrandom",
     "precomputed-tables",
     "reusable_secrets",
     "static_secrets",
@@ -57,7 +59,7 @@ uniffi = { version = "0.32", features = ["build"], optional = true }
 
 [dev-dependencies]
 criterion = { version = "0.8", default-features = false }
-etherparse = "0.20"
+etherparse = "0.21"
 tracing-subscriber = "0.3"
 
 [lib]

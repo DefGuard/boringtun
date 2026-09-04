@@ -9,7 +9,9 @@ use std::{
         io::{AsRawFd, FromRawFd},
         net::{UnixListener, UnixStream},
     },
+    path::Path,
     sync::atomic::Ordering,
+    time::Duration,
 };
 
 use hex::encode as encode_hex;
@@ -127,7 +129,7 @@ impl Device {
                 // deletion, and kqueue EVFILT_VNODE can be used for the same purpose, but that
                 // will require introducing new events, for no measurable benefit.
                 // TODO: Could this be an issue if we restart the service too quickly?
-                let path = std::path::Path::new(&path);
+                let path = Path::new(&path);
                 if !path.exists() {
                     d.trigger_exit();
                     return Action::Exit;
@@ -140,7 +142,7 @@ impl Device {
 
                 Action::Continue
             }),
-            std::time::Duration::from_secs(1),
+            Duration::from_secs(1),
         )?;
 
         Ok(())

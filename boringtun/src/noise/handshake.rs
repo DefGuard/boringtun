@@ -7,16 +7,17 @@ use std::{
     time::{Duration, SystemTime},
 };
 
-use aead::{AeadInPlace, rand_core::OsRng};
+use aead::{
+    AeadInOut,
+    consts::{U16, U24},
+};
 use blake2::{
     Blake2s256, Blake2sMac, Digest,
     digest::{FixedOutput, KeyInit},
 };
-use chacha20poly1305::XChaCha20Poly1305;
-use chacha20poly1305::{Tag, XNonce};
+use chacha20poly1305::{ChaCha20Poly1305, Nonce as ChaChaNonce, Tag, XChaCha20Poly1305, XNonce};
 #[cfg(feature = "mock-instant")]
 use mock_instant::global::Instant;
-use ring::aead::{Aad, CHACHA20_POLY1305, LessSafeKey, Nonce, UnboundKey};
 
 use super::{
     HandshakeInit, HandshakeResponse, PacketCookieReply, errors::WireGuardError, session::Session,
@@ -95,21 +96,21 @@ fn b2s_kdf3(key: &[u8], input: &[u8]) -> ([u8; 32], [u8; 32], [u8; 32]) {
 
 #[inline]
 pub(crate) fn b2s_keyed_mac_16(key: &[u8], data1: &[u8]) -> [u8; 16] {
-    let mut hmac = Blake2sMac::new_from_slice(key).unwrap();
+    let mut hmac: Blake2sMac<U16> = Blake2sMac::new_from_slice(key).unwrap();
     blake2::digest::Update::update(&mut hmac, data1);
     hmac.finalize_fixed().into()
 }
 
 #[inline]
 pub(crate) fn b2s_keyed_mac_16_2(key: &[u8], data1: &[u8], data2: &[u8]) -> [u8; 16] {
-    let mut hmac = Blake2sMac::new_from_slice(key).unwrap();
+    let mut hmac: Blake2sMac<U16> = Blake2sMac::new_from_slice(key).unwrap();
     blake2::digest::Update::update(&mut hmac, data1);
     blake2::digest::Update::update(&mut hmac, data2);
     hmac.finalize_fixed().into()
 }
 
 pub(crate) fn b2s_mac_24(key: &[u8], data1: &[u8]) -> [u8; 24] {
-    let mut hmac = Blake2sMac::new_from_slice(key).unwrap();
+    let mut hmac: Blake2sMac<U24> = Blake2sMac::new_from_slice(key).unwrap();
     blake2::digest::Update::update(&mut hmac, data1);
     hmac.finalize_fixed().into()
 }
@@ -131,19 +132,13 @@ fn aead_chacha20_seal_inner(
     data: &[u8],
     aad: &[u8],
 ) {
-    let key = LessSafeKey::new(UnboundKey::new(&CHACHA20_POLY1305, key).unwrap());
-
+    let n = ChaChaNonce::try_from(nonce.as_slice()).unwrap();
     ciphertext[..data.len()].copy_from_slice(data);
-
-    let tag = key
-        .seal_in_place_separate_tag(
-            Nonce::assume_unique_for_key(nonce),
-            Aad::from(aad),
-            &mut ciphertext[..data.len()],
-        )
+    let tag = ChaCha20Poly1305::new_from_slice(key)
+        .unwrap()
+        .encrypt_inout_detached(&n, aad, (&mut ciphertext[..data.len()]).into())
         .unwrap();
-
-    ciphertext[data.len()..].copy_from_slice(tag.as_ref());
+    ciphertext[data.len()..].copy_from_slice(&tag);
 }
 
 #[inline]
@@ -155,7 +150,7 @@ fn aead_chacha20_open(
     data: &[u8],
     aad: &[u8],
 ) -> Result<(), WireGuardError> {
-    let mut nonce: [u8; 12] = [0; 12];
+    let mut nonce = [0; 12];
     nonce[4..].copy_from_slice(&counter.to_le_bytes());
 
     // Handshake payloads are fixed-size and fit in a small stack buffer.
@@ -174,13 +169,15 @@ fn aead_chacha20_open_inner(
     nonce: [u8; 12],
     data: &mut [u8],
     aad: &[u8],
-) -> Result<(), ring::error::Unspecified> {
-    let key = LessSafeKey::new(UnboundKey::new(&CHACHA20_POLY1305, key).unwrap());
-
-    let plaintext = key.open_in_place(Nonce::assume_unique_for_key(nonce), Aad::from(aad), data)?;
-
-    buffer.copy_from_slice(plaintext);
-
+) -> Result<(), aead::Error> {
+    let n = ChaChaNonce::try_from(nonce.as_slice()).unwrap();
+    let ciphertext_len = data.len() - 16;
+    let (ciphertext, tag_bytes) = data.split_at_mut(ciphertext_len);
+    let tag = Tag::try_from(&tag_bytes[..]).unwrap();
+    ChaCha20Poly1305::new_from_slice(key)
+        .unwrap()
+        .decrypt_inout_detached(&n, aad, ciphertext.into(), &tag)?;
+    buffer.copy_from_slice(ciphertext);
     Ok(())
 }
 
@@ -657,14 +654,11 @@ impl Handshake {
         let mut cookie = [0u8; COOKIE_SIZE];
         cookie.copy_from_slice(&packet.encrypted_cookie[..COOKIE_SIZE]);
 
+        let xnonce = XNonce::try_from(packet.nonce).unwrap();
+        let tag: Tag = Tag::try_from(&packet.encrypted_cookie[COOKIE_SIZE..]).unwrap();
         XChaCha20Poly1305::new_from_slice(&self.params.cookie_key)
             .unwrap()
-            .decrypt_in_place_detached(
-                XNonce::from_slice(packet.nonce),
-                &mac1,
-                &mut cookie,
-                Tag::from_slice(&packet.encrypted_cookie[COOKIE_SIZE..]),
-            )
+            .decrypt_inout_detached(&xnonce, &mac1, (&mut cookie[..]).into(), &tag)
             .map_err(|_| WireGuardError::InvalidAeadTag)?;
 
         self.cookies.write_cookie = Some(cookie);
@@ -717,7 +711,7 @@ impl Handshake {
         let mut hash = INITIAL_CHAIN_HASH;
         hash = b2s_hash(&hash, self.params.peer_static_public.as_bytes());
         // initiator.ephemeral_private = DH_GENERATE()
-        let ephemeral_private = x25519::ReusableSecret::random_from_rng(OsRng);
+        let ephemeral_private = x25519::ReusableSecret::random();
         // msg.message_type = 1
         // msg.reserved_zero = { 0, 0, 0 }
         message_type.copy_from_slice(&super::HANDSHAKE_INIT.to_le_bytes());
@@ -795,7 +789,7 @@ impl Handshake {
         let (encrypted_nothing, _) = rest.split_at_mut(16);
 
         // responder.ephemeral_private = DH_GENERATE()
-        let ephemeral_private = x25519::ReusableSecret::random_from_rng(OsRng);
+        let ephemeral_private = x25519::ReusableSecret::random();
         let local_index = self.inc_index();
         // msg.message_type = 2
         // msg.reserved_zero = { 0, 0, 0 }

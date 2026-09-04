@@ -14,7 +14,6 @@ use std::{
     sync::Once,
 };
 
-use aead::rand_core::OsRng;
 use base64::prelude::*;
 use hex::encode as encode_hex;
 use libc::{SIGSEGV, raise};
@@ -101,7 +100,7 @@ pub struct x25519_key {
 #[unsafe(no_mangle)]
 pub extern "C" fn x25519_secret_key() -> x25519_key {
     x25519_key {
-        key: StaticSecret::random_from_rng(OsRng).to_bytes(),
+        key: StaticSecret::random().to_bytes(),
     }
 }
 
