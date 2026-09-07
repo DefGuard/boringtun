@@ -3,15 +3,12 @@ use std::{
     sync::atomic::{AtomicU64, Ordering},
 };
 
-use aead::{
-    AeadInPlace, KeyInit,
-    generic_array::GenericArray,
-    rand_core::{OsRng, RngCore},
-};
-use chacha20poly1305::{Key, XChaCha20Poly1305};
+use aead::{AeadInOut, KeyInit};
+use chacha20poly1305::{Key, XChaCha20Poly1305, XNonce};
 #[cfg(feature = "mock-instant")]
 use mock_instant::global::Instant;
 use parking_lot::Mutex;
+use rand::Rng;
 
 use super::{
     HandshakeInit, HandshakeResponse, Packet, Tunn, TunnResult, WireGuardError,
@@ -60,7 +57,7 @@ impl RateLimiter {
     #[must_use]
     pub fn new(public_key: &crate::x25519::PublicKey, limit: u64) -> Self {
         let mut secret_key = [0u8; 16];
-        OsRng.fill_bytes(&mut secret_key);
+        rand::rng().fill_bytes(&mut secret_key);
         RateLimiter {
             nonce_key: Self::rand_bytes(),
             secret_key,
@@ -76,7 +73,7 @@ impl RateLimiter {
 
     fn rand_bytes() -> [u8; 32] {
         let mut key = [0u8; 32];
-        OsRng.fill_bytes(&mut key);
+        rand::rng().fill_bytes(&mut key);
         key
     }
 
@@ -143,11 +140,11 @@ impl RateLimiter {
 
         let cipher = XChaCha20Poly1305::new(&self.cookie_key);
 
-        let iv = GenericArray::from_slice(nonce);
+        let iv = XNonce::try_from(&nonce[..]).unwrap();
 
         encrypted_cookie[..16].copy_from_slice(&cookie);
         let tag = cipher
-            .encrypt_in_place_detached(iv, mac1, &mut encrypted_cookie[..16])
+            .encrypt_inout_detached(&iv, mac1, (&mut encrypted_cookie[..16]).into())
             .map_err(|_| WireGuardError::DestinationBufferTooSmall)?;
 
         encrypted_cookie[16..].copy_from_slice(&tag);

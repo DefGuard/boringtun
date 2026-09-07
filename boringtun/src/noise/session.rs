@@ -128,9 +128,7 @@ impl ReceivingKeyCounterValidator {
         // Packets where dropped, or maybe reordered, skip them and mark unused
         if counter - self.next >= N_BITS {
             // Too far ahead, clear all the bits
-            for c in &mut self.bitmap {
-                *c = 0;
-            }
+            self.bitmap.fill(0);
         } else {
             let mut i = self.next;
             while !i.is_multiple_of(WORD_SIZE) && i < counter {
@@ -284,7 +282,7 @@ mod tests {
     use super::*;
     #[test]
     fn test_replay_counter() {
-        let mut c: ReceivingKeyCounterValidator = Default::default();
+        let mut c = ReceivingKeyCounterValidator::default();
 
         assert!(c.mark_did_receive(0).is_ok());
         assert!(c.mark_did_receive(0).is_err());

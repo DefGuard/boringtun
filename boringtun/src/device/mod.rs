@@ -49,11 +49,11 @@ use std::{
     time::Duration,
 };
 
-use aead::rand_core::{OsRng, RngCore};
 use allowed_ips::AllowedIps;
 use parking_lot::Mutex;
 use peer::{AllowedIP, Peer};
 use poll::{EventPoll, EventRef, WaitResult};
+use rand::Rng;
 use socket2::{Domain, Protocol, Type};
 use tun::TunSocket;
 
@@ -912,7 +912,7 @@ impl IndexLfsr {
     fn random_index() -> u32 {
         const LFSR_MAX: u32 = 0xff_ffff; // 24-bit seed
         loop {
-            let i = OsRng.next_u32() & LFSR_MAX;
+            let i = rand::rng().next_u32() & LFSR_MAX;
             if i > 0 {
                 // LFSR seed must be non-zero
                 return i;

@@ -90,7 +90,7 @@ mod tests {
     use super::*;
 
     fn build_allowed_ips() -> AllowedIps<char> {
-        let mut map: AllowedIps<char> = Default::default();
+        let mut map = AllowedIps::default();
         map.insert(IpAddr::from([127, 0, 0, 1]), 32, '1');
         map.insert(IpAddr::from([45, 25, 15, 1]), 30, '6');
         map.insert(IpAddr::from([127, 0, 15, 1]), 16, '2');
@@ -185,7 +185,7 @@ mod tests {
     #[test]
     fn test_allowed_ips_v4_kernel_compatibility() {
         // Test case from wireguard-go
-        let mut map: AllowedIps<char> = Default::default();
+        let mut map = AllowedIps::default();
 
         map.insert(IpAddr::from([192, 168, 4, 0]), 24, 'a');
         map.insert(IpAddr::from([192, 168, 4, 4]), 32, 'b');
@@ -244,7 +244,7 @@ mod tests {
     #[test]
     fn test_allowed_ips_v6_kernel_compatibility() {
         // Test case from wireguard-go
-        let mut map: AllowedIps<char> = Default::default();
+        let mut map = AllowedIps::default();
 
         map.insert(
             IpAddr::from([
@@ -376,7 +376,7 @@ mod tests {
 
     #[test]
     fn test_allowed_ips_iter_zero_leaf_bits() {
-        let mut map: AllowedIps<char> = Default::default();
+        let mut map = AllowedIps::default();
         map.insert(IpAddr::from([10, 111, 0, 1]), 32, '1');
         map.insert(IpAddr::from([10, 111, 0, 2]), 32, '2');
         map.insert(IpAddr::from([10, 111, 0, 3]), 32, '3');

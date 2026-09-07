@@ -1,7 +1,5 @@
 use std::{fmt, str::FromStr};
 
-#[cfg(feature = "bindgen")]
-use aead::rand_core::OsRng;
 use base64::prelude::*;
 #[cfg(feature = "bindgen")]
 use x25519_dalek::StaticSecret;
@@ -65,7 +63,7 @@ impl FromStr for KeyBytes {
 #[cfg(feature = "bindgen")]
 impl KeyBytes {
     pub fn secret() -> Self {
-        let key = StaticSecret::random_from_rng(OsRng).to_bytes();
+        let key = StaticSecret::random().to_bytes();
         Self(key)
     }
 
