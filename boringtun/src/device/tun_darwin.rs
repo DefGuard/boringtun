@@ -14,6 +14,32 @@ use super::Error;
 
 const CTRL_NAME: &[u8] = b"com.apple.net.utun_control";
 
+// `libc` exposes these definitions only for macOS, but they are identical on other Apple platforms.
+#[cfg(not(target_os = "macos"))]
+mod sys {
+    use libc::{c_int, c_uchar};
+
+    // sys/sys_domain.h
+    pub const AF_SYS_CONTROL: c_int = 2;
+    pub const SYSPROTO_CONTROL: c_int = 2;
+    // net/if_utun.h
+    pub const UTUN_OPT_IFNAME: c_int = 2;
+
+    // sys/kern_control.h
+    #[allow(non_camel_case_types)]
+    #[repr(C)]
+    pub struct sockaddr_ctl {
+        pub sc_len: c_uchar,
+        pub sc_family: c_uchar,
+        pub ss_sysaddr: u16,
+        pub sc_id: u32,
+        pub sc_unit: u32,
+        pub sc_reserved: [u32; 5],
+    }
+}
+#[cfg(not(target_os = "macos"))]
+use sys::*;
+
 #[repr(C)]
 pub struct ctl_info {
     pub ctl_id: u32,
